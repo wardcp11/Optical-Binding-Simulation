@@ -100,7 +100,7 @@ double E_0 = sqrt(2 * n_0 * n_b * I_0);
 double dt = 10 / gamma;
 double Gamma = 2.0 * gamma * kB * T / mass;
 double DeltaB = Gamma * dt;
-int maxstep = 500;
+int maxstep = 5;
 
 bool zeroZAxis = true; //Special Modifier to Deal with Undefined Behavior
 
@@ -108,7 +108,7 @@ bool RREF(complex<double>** A, int equations);
 
 complex<double>* EInc(double x, double y, double z) { //returns incident field at specified x,y,z in xx direction
     //RETURNS HEAP ARRAY AND NEEDS TO BE FREED AFTER USED
-    char eIncDirection = 'x'; //Define Char for direction 'x', 'y', or 'z'      defaults to x in undefined behavior
+    char eIncDirection = 'x'; //Define Char for direction 'x', 'y', or 'z'
     complex<double>* incidentField = new complex<double>[3];
     incidentField[0] = 0.0;
     incidentField[1] = 0.0;
@@ -251,6 +251,51 @@ complex<double>** SolveForP_n(double*** positions, int step) { //Linear equation
     return rrefArray;
 }
 
+void PopulatePolarizabilities(complex<double>** polarizabilities, complex<double>** solArray) {
+    for (int particle = 0; particle < NN; ++particle) {
+        polarizabilities[particle][0] = solArray[0 + 3 * particle][3 * NN];
+        polarizabilities[particle][1] = solArray[1 + 3 * particle][3 * NN];
+        polarizabilities[particle][2] = solArray[2 + 3 * particle][3 * NN];
+    }
+}
+
+complex<double>** Etot(double*** positions, int step, complex<double>** pp) {
+
+    complex<double>** Etot = new complex<double>*[NN]; // #particles
+    for (int axis = 0; axis < NN; ++axis) {
+        Etot[axis] = new complex<double>[3]; // 3 axes
+    }
+
+    for (int currParticle = 0; currParticle < NN; ++currParticle) {
+        complex<double>* incField = EInc(positions[step][currParticle][0], positions[step][currParticle][1], positions[step][currParticle][2]);
+        complex<double>* ESC = new complex<double>[3];
+        
+        for (int sumParticle = 0; sumParticle < NN; ++sumParticle) {
+            if (sumParticle != currParticle) {
+                complex<double>** G = GreensFunc(positions[step][currParticle][0] - positions[step][sumParticle][0], 
+                                                 positions[step][currParticle][1] - positions[step][sumParticle][1],
+                                                 positions[step][currParticle][2] - positions[step][sumParticle][2]);
+
+                //dot product
+                ESC[0] = ESC[0] + (G[0][0] * pp[sumParticle][0] + G[0][1] * pp[sumParticle][1] + G[0][2] * pp[sumParticle][2]);
+                ESC[1] = ESC[1] + (G[1][0] * pp[sumParticle][0] + G[1][1] * pp[sumParticle][1] + G[1][2] * pp[sumParticle][2]);
+                ESC[2] = ESC[2] + (G[2][0] * pp[sumParticle][0] + G[2][1] * pp[sumParticle][1] + G[2][2] * pp[sumParticle][2]);
+
+                for (int i = 0; i < 3; ++i) { delete[] G[i]; }
+                delete[] G; // delete overall array
+            }
+        }
+
+        Etot[currParticle][0] = incField[0] + ESC[0];
+        Etot[currParticle][1] = incField[1] + ESC[1];
+        Etot[currParticle][2] = incField[2] + ESC[2];
+
+        delete[] incField;
+        delete[] ESC;
+    }
+    return Etot;
+}
+
 
 
 int main() {
@@ -269,6 +314,7 @@ int main() {
     std::random_device rd;  // Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
     std::uniform_real_distribution<> dis(-(L / 2), L / 2);
+
     double*** positions = new double**[maxstep]; // indexed positions[time step][particle#][axis] (time step: 0-maxstep) (axis: x=0, y=1, z=2)
     for (int step = 0; step < maxstep; ++step) {
         positions[step] = new double* [NN];
@@ -291,12 +337,22 @@ int main() {
             }
         }
     }
-    //Initialize Velocities with 0, can change
+    std::default_random_engine generator;
+    std::normal_distribution<double> stdNorm(0, 1.0);
+    //Initialize Step-1 Velocities with 0, can change
     double** velocities = new double*[NN];
     for (int particle = 0; particle < NN; ++particle) {
         velocities[particle] = new double[3];
         for (int axis = 0; axis < 3; ++axis) { // initialize for each axis x,y,z
             velocities[particle][axis] = 0;
+        }
+    }
+    //Initialize Forces
+    double** forces = new double* [NN];
+    for (int particle = 0; particle < NN; ++particle) {
+        forces[particle] = new double[3];
+        for (int axis = 0; axis < 3; ++axis) { // initialize for each axis x,y,z
+            forces[particle][axis] = 0;
         }
     }
     //Initialize Polarizabilities
@@ -312,33 +368,61 @@ int main() {
     for (int particle = 0; particle < NN; ++particle) {
         incElectricField[particle] = EInc(positions[0][particle][0], positions[0][particle][1], positions[0][particle][2]);
     }
-
-
-
-
-    complex<double>** temp = SolveForP_n(positions, 0); //Temp Code to print off RREF array
-    for (int i = 0; i < 3 * NN; ++i) {
-        for (int j = 0; j < 3 * NN + 1; ++j) {
-            cout << temp[i][j];
+    //Initialize Dipole Moments
+    complex<double>** pp = new complex<double>*[NN];
+    for (int particle = 0; particle < NN; ++particle) {
+        pp[particle] = new complex<double>[3];
+        for (int axis = 0; axis < 3; ++axis) { // initialize for each axis x,y,z
+            pp[particle][axis] = 0;
         }
-        cout << endl;
     }
-    for (int particle = 0; particle < 3 * NN; ++particle) { delete[] temp[particle]; } // deallocate each "sub" array
-    delete[] temp; // delete overall array
+    complex<double>** solutions = SolveForP_n(positions, 0);
+    PopulatePolarizabilities(pp, solutions);
+    for (int particle = 0; particle < 3 * NN; ++particle) { delete[] solutions[particle]; } // deallocate each "sub" array
+    delete[] solutions; // delete overall array
 
 
 
+    complex<double>** eTotal = Etot(positions, 0, pp);
+    for (int index_1 = 0; index_1 < NN; ++index_1) { delete[] eTotal[index_1]; } // deallocate each "sub" array
+    delete[] eTotal; // delete overall array
 
 
     // *** START OF SIMULATION ***
 
     for (int step = 1; step < maxstep; ++step) {
+
+        complex<double>** solutions = SolveForP_n(positions, step - 1);
+        PopulatePolarizabilities(pp, solutions);
+
         for (int particle = 0; particle < NN; ++particle) {
             for (int axis = 0; axis < 3; ++axis) {
+
                 positions[step][particle][axis] = positions[step - 1][particle][axis] + velocities[particle][axis] * dt;
 
             }
         }
+
+
+        for (int particle = 0; particle < NN; ++particle) {
+            for (int axis = 0; axis < 3; ++axis) {
+
+
+                switch (axis) {
+                default:
+                    velocities[particle][axis] = velocities[particle][axis] * exp(-1.0 * gamma * dt) + (sqrt(2 * DeltaB) / 2) * stdNorm(generator) + forces[particle][axis] * (dt / mass);
+                case 2:
+                    velocities[particle][axis] = 0.0; // no motion in z axis
+                    break;
+                }
+
+
+            }
+        }
+
+
+        for (int particle = 0; particle < 3 * NN; ++particle) { delete[] solutions[particle]; } // deallocate each "sub" array
+        delete[] solutions; // delete overall array
     }
 
 
@@ -363,16 +447,22 @@ int main() {
     for (int index_1 = 0; index_1 < NN; ++index_1) { delete[] velocities[index_1]; } // deallocate each "sub" array
     delete[] velocities; // delete overall array
 
+    for (int index_1 = 0; index_1 < NN; ++index_1) { delete[] forces[index_1]; } // deallocate each "sub" array
+    delete[] forces; // delete overall array
+
     for (int index_1 = 0; index_1 < NN; ++index_1) { delete[] polarizabilities[index_1]; } // deallocate each "sub" array
     delete[] polarizabilities; // delete overall array
 
     for (int particle = 0; particle < NN; ++particle) { delete[] incElectricField[particle]; } // Free memory for each incident field
     delete[] incElectricField; // delete overall array
+    
+    for (int index_1 = 0; index_1 < NN; ++index_1) { delete[] pp[index_1]; } // deallocate each "sub" array
+    delete[] pp; // delete overall array
 
 
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(stop - start);
-    cout << "Time[us]: " << duration.count() << endl;
+    std::cout << "Time[us]: " << duration.count() << endl;
 
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
     _CrtDumpMemoryLeaks();
