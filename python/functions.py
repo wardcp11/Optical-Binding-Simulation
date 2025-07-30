@@ -1,13 +1,7 @@
 import cupy as cp
+import cupyx.scipy.linalg as cpx
 import numpy.typing as npt
-from constants import (
-    k,
-    epsilon_0,
-    epsilon_b,
-    E0,
-    w0,
-    alpha_real,
-)
+from constants import k, epsilon_0, epsilon_b, E0, w0, alpha_real, num_of_particle
 
 
 def create_G_mnij(
@@ -45,7 +39,6 @@ def create_G_mnij(
     pos_diff_arr = pos_arr[:, None, :] - pos_arr[None, :, :]  # shape of (N, N, 3)
 
     R = cp.linalg.norm(pos_diff_arr, axis=2)  # (N, N)
-    R = R + cp.eye(N) * 1e-20  # Numerical stability
     kR = k * R  # (N, N)
     G = cp.exp(1j * kR) / (4 * cp.pi * R * epsilon_0 * epsilon_b)  # (N, N)
     outer_prod_arr = cp.einsum(
@@ -68,7 +61,6 @@ def create_G_mnij(
     mask = cp.eye(N, dtype=bool)  # (N,N)
     dyadic[mask] = (-1 / pol_arr[:, None]) * cp.eye(3)[None, :, :]
     return dyadic
-
     # pos_arr: npt.NDArray[cp.float64], pol_arr: npt.NDArray[cp.complex128]
 
 
@@ -79,11 +71,11 @@ def create_G_mnij_scatter(
     pos_diff_arr = pos_arr[:, None, :] - pos_arr[None, :, :]  # shape of (N, N, 3)
 
     R = cp.linalg.norm(pos_diff_arr, axis=2)  # (N, N)
-    G = cp.exp(1j * k * R) / (4 * cp.pi * R)  # (N, N)
+    kR = k * R  # (N, N)
+    G = cp.exp(1j * kR) / (4 * cp.pi * R * epsilon_0 * epsilon_b)  # (N, N)
     outer_prod_arr = cp.einsum(
         "...i,...j->...ij", pos_diff_arr, pos_diff_arr
     )  # (N, N, 3, 3)
-    kR = k * R  # (N, N)
     block_struct = cp.eye(3)[None, None, :, :]  # (1, 1, 3, 3)
 
     main_diag_terms = (
@@ -95,11 +87,11 @@ def create_G_mnij_scatter(
     off_diag_terms = (
         G[:, :, None, None] * (-3 + kR * (kR + 3j))[:, :, None, None] * outer_prod_arr
     )  # (N, N, 3, 3)
-    scaling_terms = 1 / (k**2 * R[:, :, None, None] ** 4 * epsilon_0 * epsilon_b)
+    scaling_terms = 1 / (R[:, :, None, None] ** 4)
     dyadic = scaling_terms * (main_diag_terms - off_diag_terms)
 
     mask = cp.eye(N, dtype=bool)  # (N,N)
-    dyadic[mask] = cp.zeros((3, 3))[None, :, :]  # Removes the self interaction term
+    dyadic[mask] = 0.0 * cp.eye(3)[None, :, :]
     return dyadic
 
 
@@ -171,7 +163,6 @@ def gen_Escat_di_mi(
 
     pos_diff_arr = pos_arr[:, None, :] - pos_arr[None, :, :]  # shape of (N, N, 3)
     R = cp.linalg.norm(pos_diff_arr, axis=2)  # (N, N)
-    R = R + cp.eye(N) * 1e-20  # Numerical stability
     kR = k * R  # (N, N)
     G = cp.exp(1j * kR) / (4 * cp.pi * R * epsilon_0 * epsilon_b)  # (N, N)
 
@@ -217,13 +208,6 @@ def gen_Escat_di_mi(
     Escat_di_mi = cp.einsum("nmij,mi->nj", derivative_terms, pol_arr)
     return Escat_di_mi
 
-
-def diagonally_load_matrix(A: npt.NDArray) -> npt.NDArray:
-    sigma = cp.linalg.svd(A, compute_uv=False)
-    lam_max = cp.max(sigma)
-    return A + 1e-3 * lam_max * cp.eye(A.shape[0])
-
-
 def calculate_gradient_forces(
     pos_arr: npt.NDArray[cp.float64],
     pol_arr: npt.NDArray[cp.complex128],
@@ -238,7 +222,6 @@ def calculate_gradient_forces(
     Einc_di_mi = cp.zeros((N, 3), dtype=cp.complex128)
 
     R = cp.linalg.norm(pos_diff_arr, axis=2)  # (N, N)
-    R = R + cp.eye(N) * 1e-20  # Numerical stability
     # G = cp.exp(1j * k * R) / (4 * cp.pi * R * epsilon_0 * epsilon_b)  # (N, N)
 
     # Calculate all the terms present in gradient force equation
