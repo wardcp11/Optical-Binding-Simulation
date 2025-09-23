@@ -106,5 +106,40 @@ def test_dipole_moment_calcs():
     assert_allclose(p_i, p_i_ground_truth, rtol=0.2e-2, atol=1e-7)  # type:ignore
 
 
+def test_Escatter_calcs():
+    with open("../test_files/starting_pos_arr.json") as f:
+        pos_arr = json.load(f)
+    pos_arr = cp.asarray(pos_arr, dtype=cp.float64)
+
+    with open("../test_files/starting_pol_arr.json") as f:
+        pol_arr = json.load(f)
+    pol_arr = cp.asarray(pol_arr, dtype=cp.complex128)
+
+    with open("../test_files/Esct_mi_real.json") as f:
+        Esc_mi_real = json.load(f)
+    Esc_mi_real = cp.asarray(Esc_mi_real, dtype=cp.float64)
+
+    with open("../test_files/Esct_mi_imag.json") as f:
+        Esc_mi_imag = json.load(f)
+    Esc_mi_imag = cp.asarray(Esc_mi_imag, dtype=cp.float64)
+
+    Esc_mi_ground_truth = Esc_mi_real + 1j * Esc_mi_imag
+    Einc_mi = gen_Einc_mi(pos_arr)
+    G_nmij = create_G_mnij(pos_arr, pol_arr)
+
+    G_flattened = G_nmij.transpose(0, 2, 1, 3).reshape(
+        3 * num_of_particle, 3 * num_of_particle
+    )
+    E_flattened = Einc_mi.reshape(3 * num_of_particle)
+    p_i = (-cp.linalg.inv(G_flattened) @ E_flattened).reshape(num_of_particle, 3)
+
+    G_mnij_scatter = create_G_mnij_scatter(pos_arr)
+    Escattered_ni = cp.einsum("nmij,mj->ni", G_mnij_scatter, p_i)
+
+    assert_allclose(
+        Escattered_ni, Esc_mi_ground_truth, rtol=0.2e-2, atol=1e-7  # type:ignore
+    )
+
+
 if __name__ == "__main__":
     print("Fuzzy Wuzzy was a bear.")

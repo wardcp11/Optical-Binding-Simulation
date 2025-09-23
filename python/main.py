@@ -1,12 +1,8 @@
-import numpy.typing as npt
 import cupy as cp
-import time
-from constants import num_of_particle, alpha, k, omega, mu_0, mu_b, L
+from constants import num_of_particle, alpha, k, omega, mu_0, mu_b
 from functions import (
-    calculate_gradient_forces,
     create_G_mnij,
     create_G_mnij_scatter,
-    print_condition_number,
     gen_Einc_mi,
 )
 
@@ -44,23 +40,3 @@ if __name__ == "__main__":
     Htot = (
         1j / (omega * mu_0 * mu_b) * cp.cross(cp.asarray([0, 0, k]), Etot)
     )  # BUG: Analytic solution required, work out by hand
-
-    # Calculate forces
-    grad_forces = calculate_gradient_forces(positions_arr, p_i, Escattered_ni)
-
-    # NOTE: Print line debugging
-
-    # print(G_nmij[1, 0])  # Passed
-    # print(G_nmij[1, 1])  # Passed
-    # print(G_nmij[0, 2])  # Passed
-
-    # Test for symmetry: Passed
-    # for i in range(G_nmij.shape[0]):
-    #     for j in range(G_nmij.shape[1]):
-    #         print(cp.isclose(G_nmij[i, j], G_nmij[j, i]))
-
-    # print(Einc_mi[2])  # Passed
-    # print(p_i[0])  # BUG: Failed
-    # print(1e5 * p_i[0])  # Passed?
-
-    print(Escattered_ni[0])  # Passed? Wrong order of magnitude

@@ -69,3 +69,8 @@ alpha = alpha_real + alpha_imag
 
 w0 = L / 4
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
+
+if __name__ == "__main__":
+    print(f"{epsilon_0=}")
+    print(f"{epsilon_b=}")
+    print(f"{k=}")
