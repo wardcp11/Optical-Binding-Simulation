@@ -1,5 +1,5 @@
 import cupy as cp
-from cupy import float64, complex128
+from cupy import float64, complex128, full
 from cupy.testing import assert_allclose
 from numpy.typing import NDArray
 from constants import (
@@ -39,11 +39,6 @@ def create_G_mnij(
         The dyadic Green's tensor with shape (N, N, 3, 3), where the last two indices
         represent the tensor components and the first two index the dipole pair (n, m).
         Self-terms (n == m) are set to -1 / alpha * I₃.
-
-    Notes
-    -----
-    - Computation is vectorized and runs entirely on the GPU using CuPy.
-    - Based on the free-space dyadic Green's function in the frequency domain.
     """
     N = pos_arr.shape[0]
     pos_diff_arr = pos_arr[:, None, :] - pos_arr[None, :, :]  # shape of (N, N, 3)
@@ -98,11 +93,6 @@ def create_G_mnij_scatter(
         The dyadic Green's tensor with shape (N, N, 3, 3), where the last two indices
         represent the tensor components and the first two index the dipole pair (n, m).
         Self-terms (n == m) are set to 0.
-
-    Notes
-    -----
-    - Computation is vectorized and runs entirely on the GPU using CuPy.
-    - Based on the free-space dyadic Green's function in the frequency domain.
     """
     N = pos_arr.shape[0]
     pos_diff_arr = pos_arr[:, None, :] - pos_arr[None, :, :]  # shape of (N, N, 3)
@@ -130,6 +120,57 @@ def create_G_mnij_scatter(
     mask = cp.eye(N, dtype=bool)  # (N,N)
     dyadic[mask] = 0.0 * cp.eye(3)[None, :, :]
     return dyadic
+
+
+def create_G_field(
+    src_pos_arr: NDArray[float64],  # (N, 3) source dipoles
+    obs_pos_arr: NDArray[float64],  # (M, 3) observation grid points
+) -> NDArray[complex128]:
+    """
+    Computes the dyadic Green's function Gₘₙᵢⱼ for fields at arbitrary observation points.
+
+    Parameters
+    ----------
+    src_pos_arr : cp.ndarray
+        Positions of N source dipoles (N, 3).
+    obs_pos_arr : cp.ndarray
+        Positions of M observation points (M, 3).
+
+    Returns
+    -------
+    G_field : cp.ndarray
+        Dyadic Green's function array of shape (M, N, 3, 3), where
+        G_field[m, n, i, j] gives the (i,j)-component of the Green’s tensor
+        from dipole n to observation point m.
+    """
+    obs_pos_arr = cp.asarray(obs_pos_arr)
+    src_pos_arr = cp.asarray(src_pos_arr)
+
+    # (M, N, 3) difference vector: observation - source
+    Rmn = obs_pos_arr[:, None, :] - src_pos_arr[None, :, :]
+
+    R = cp.linalg.norm(Rmn, axis=2)  # (M, N)
+    kR = k * R
+
+    # Free-space scalar Green’s function
+    G_scalar = cp.exp(1j * kR) / (4 * cp.pi * R * epsilon_0 * epsilon_b)
+
+    # Tensor structure
+    I = cp.eye(3)[None, None, :, :]  # (1,1,3,3)
+    outer = cp.einsum("mni,mnj->mnij", Rmn, Rmn)  # (M,N,3,3)
+
+    # Dyadic terms
+    main = (
+        I
+        * G_scalar[:, :, None, None]
+        * R[:, :, None, None] ** 2
+        * (kR * (kR + 1j) - 1)[:, :, None, None]
+    )
+    off = G_scalar[:, :, None, None] * (-3 + kR * (kR + 3j))[:, :, None, None] * outer
+
+    G_field = (main - off) / (R[:, :, None, None] ** 4)
+
+    return G_field
 
 
 def print_condition_number(A: NDArray):
@@ -192,45 +233,92 @@ def gen_Escat(
     return cp.einsum("nmij,mj->ni", G_mnij, pol_arr)
 
 
-def gen_dx_Escat(
+# def gen_dx_Escat(
+#     pos_arr: NDArray[float64], pol_arr: NDArray[complex128]
+# ) -> NDArray[complex128]:
+#     # NOTE: This is a first pass not using array broadcasting
+#     π = cp.pi
+#     N = pos_arr.shape[0]
+#
+#     dx_Escat = cp.zeros((N, N, 3, 3), dtype=complex128)
+#     for n in range(N):
+#         for m in range(N):
+#             if n == m:
+#                 dx_Escat[n, m] = cp.zeros((3, 3))
+#             else:
+#                 xi = pos_arr[n] - pos_arr[m]
+#                 r = cp.linalg.norm(xi, axis=0)
+#                 kr = k * r
+#                 r_sq = r**2
+#
+#                 G = cp.exp(1j * kr) / (4 * π * r)
+#                 # Calculate d/dxl d/dxj d/dxi G
+#                 kron = cp.eye(3)  # (3, 3)
+#                 xiδjl = cp.einsum("i,jl->ijl", xi, kron)  # (3, 3, 3)
+#                 xjδil = cp.einsum("j,il->ijl", xi, kron)  # (3, 3, 3)
+#                 xlδij = cp.einsum("l,ij->ijl", xi, kron)  # (3, 3, 3)
+#                 xixjxl = cp.einsum("i,j,l->ijl", xi, xi, xi)  # (3, 3, 3)
+#
+#                 kron_terms = (r_sq * (kr**2 + 3j * kr - 3)) * (
+#                     xiδjl + xjδil + xlδij
+#                 )  # (3, 3, 3)
+#
+#                 dxldxjdxiG = (-G / r**6) * (
+#                     kron_terms + xixjxl * (1j * kr**3 - 6 * kr**2 - 15j * kr + 15)
+#                 )  # (3, 3, 3) # Passed
+#
+#                 full_terms = (
+#                     G * (k**2) * (r**-2) * xlδij * (1j * kr - 1) + dxldxjdxiG
+#                 ) / (
+#                     epsilon_0 * epsilon_b
+#                 )  # (3, 3, 3) # Passed
+#
+#                 dx_Escat[n, m] = cp.einsum("ijl,l->ij", full_terms, pol_arr[n])
+#     return dx_Escat.sum(axis=1)
+
+
+def gen_dx_Escat_vec(
     pos_arr: NDArray[float64], pol_arr: NDArray[complex128]
 ) -> NDArray[complex128]:
-    # NOTE: This is a first pass not using array broadcasting
     π = cp.pi
-    N = pos_arr.shape[0]
+    N = num_of_particle
 
-    dx_Escat = cp.zeros((N, 3, 3), dtype=complex128)
-    for n in range(N):
-        for m in range(N):
-            if n == m:
-                pass
-            else:
-                xi = pos_arr[n] - pos_arr[m]
-                r = cp.linalg.norm(xi, axis=0)
-                kr = k * r
-                r_sq = r**2
+    xi = pos_arr[:, None, :] - pos_arr[None, :, :]  # shape of (N, N, 3) (m, n, i)
+    r = cp.linalg.norm(
+        xi, axis=2
+    )  # shape of (N, N) (m, n) # give 2 particle indices ill give you the distance
+    kr = k * r  # (m, n)
+    r_sq = r**2  # (m, n)
 
-                G = cp.exp(1j * kr) / (4 * π * r)
-                # Calculate d/dxl d/dxj d/dxi G
-                kron = cp.eye(3)  # (3, 3)
-                xiδjl = cp.einsum("i,jl->ijl", xi, kron)  # (3, 3, 3)
-                xjδil = cp.einsum("j,il->ijl", xi, kron)  # (3, 3, 3)
-                xlδij = cp.einsum("l,ij->ijl", xi, kron)  # (3, 3, 3)
-                xixjxl = cp.einsum("i,j,l->ijl", xi, xi, xi)  # (3, 3, 3)
+    G = cp.exp(1j * kr) / (4 * π * r)  # (m, n)
 
-                kron_terms = (r_sq * (kr**2 + 3j * kr - 3)) * (
-                    xiδjl + xjδil + xlδij
-                )  # (3, 3, 3)
+    kron = cp.eye(3)
+    xiδjl = cp.einsum("mni,jl->mnijl", xi, kron)
+    xjδil = cp.einsum("mnj,il->mnijl", xi, kron)
+    xlδij = cp.einsum("mnl,ij->mnijl", xi, kron)
+    xixjxl = cp.einsum("mni,mnj,mnl->mnijl", xi, xi, xi)
 
-                dxldxjdxiG = (-G / r**6) * (
-                    kron_terms + xixjxl * (1j * kr**3 - 6 * kr**2 - 15j * kr + 15)
-                )  # (3, 3, 3) # Passed
+    # make everything a rank 5 tensor
+    r = r[:, :, None, None, None]
+    kr = kr[:, :, None, None, None]
+    r_sq = r_sq[:, :, None, None, None]
+    G = G[:, :, None, None, None]
 
-                full_terms = (
-                    (G * (k**2) * (r**-2) * xlδij * (1j * kr - 1) + dxldxjdxiG) / (epsilon_0 * epsilon_b)
-                )  # (3, 3, 3) # Passed
-                
-                dx_Escat[n] = cp.einsum("ijl,l->ij", full_terms, pol_arr[n])
+    kron_terms = (r_sq * (kr**2 + 3j * kr - 3)) * (xiδjl + xjδil + xlδij)
+
+    dxldxjdxiG = (-G / r**6) * (
+        kron_terms + xixjxl * (1j * kr**3 - 6 * kr**2 - 15j * kr + 15)
+    )
+
+    full_terms = (G * (k**2) * (r**-2) * xlδij * (1j * kr - 1) + dxldxjdxiG) / (
+        epsilon_0 * epsilon_b
+    )
+
+    mask = cp.eye(N, N, dtype=bool)  # creates identity boolean mask
+    mask = mask[:, :, None, None, None]  # resizes mask to (m,n,i,j,l)
+
+    masked_full_terms = cp.where(mask, 0, full_terms)
+    dx_Escat = cp.einsum("mnijl,nj->mil", masked_full_terms, pol_arr)
     return dx_Escat
 
 
@@ -260,32 +348,30 @@ def gen_F_grad(
     dx_Einc = gen_dx_Einc(pos_arr)  # (N, 3, 3)
 
     Escat = gen_Escat(pos_arr, pol_arr)  # (N, 3)
-    dx_Escat = gen_dx_Escat(pos_arr, pol_arr)  # (N, 3, 3)
+    dx_Escat = gen_dx_Escat_vec(pos_arr, pol_arr)  # (N, 3, 3)
 
-    F_grad = cp.zeros((num_of_particle, 3))
-    for n in range(num_of_particle):
-        prod_rule1 = dx_Escat[n] @ Escat[n].conj() + dx_Escat[n].conj() @ Escat[n]
-        prod_rule2 = dx_Escat[n] @ Einc[n].conj() + dx_Einc[n].conj() @ Escat[n]
-        prod_rule3 = dx_Escat[n].conj() @ Einc[n] + dx_Einc[n] @ Escat[n].conj()
-        prod_rule4 = dx_Einc[n] @ Einc[n].conj() + dx_Einc[n].conj() @ Einc[n]
+    prod_rule1 = cp.einsum("nj,njl->nl", Escat, dx_Escat.conj()) + cp.einsum(
+        "nj,njl->nl", Escat.conj(), dx_Escat
+    )
 
-        F_grad[n] = (alpha_real / 4) * cp.real(
-            prod_rule1 + prod_rule2 + prod_rule3 + prod_rule4
-        )
+    prod_rule2 = cp.einsum("nj,njl->nl", Escat, dx_Einc.conj()) + cp.einsum(
+        "nj,njl->nl", Einc.conj(), dx_Escat
+    )
+
+    prod_rule3 = cp.einsum("nj,njl->nl", Einc, dx_Escat.conj()) + cp.einsum(
+        "nj,njl->nl", Escat.conj(), dx_Einc
+    )
+
+    prod_rule4 = cp.einsum("nj,njl->nl", Einc, dx_Einc.conj()) + cp.einsum(
+        "nj,njl->nl", Einc.conj(), dx_Einc
+    )
+
+    F_grad = (alpha_real / 4) * cp.real(
+        prod_rule1 + prod_rule2 + prod_rule3 + prod_rule4
+    )
+
     return F_grad
 
 
-
 if __name__ == "__main__":
-    pos_arr = cp.asarray(
-        [
-            [-9888.3, -1688.19, 10996.0],
-            [-11854.3, -4905.48, -2754.85],
-            [1644.37, 6523.84, 2778.41],
-        ]
-    )
-
-    pol_arr = cp.full((num_of_particle, 3), alpha)
-
-    # gen_dx_Escat(pos_arr, pol_arr)
-    print(gen_F_grad(pos_arr, pol_arr))
+    print("Hello world")

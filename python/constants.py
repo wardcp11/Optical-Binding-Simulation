@@ -64,6 +64,7 @@ alpha_imag = alpha_sr.imag
 # Physical Setup
 step_number = 100
 L = 25e-6 * meter
+# num_of_particle = 3
 num_of_particle = 3
 alpha = alpha_real + alpha_imag
 
@@ -74,3 +75,4 @@ if __name__ == "__main__":
     print(f"{epsilon_0=}")
     print(f"{epsilon_b=}")
     print(f"{k=}")
+    print(f"{E0=}")
