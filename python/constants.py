@@ -64,8 +64,7 @@ alpha_imag = alpha_sr.imag
 # Physical Setup
 step_number = 100
 L = 25e-6 * meter
-# num_of_particle = 3
-num_of_particle = 3
+num_of_particle = 20
 alpha = alpha_real + alpha_imag
 
 w0 = L / 4
