@@ -64,11 +64,17 @@ alpha_imag = alpha_sr.imag
 # Physical Setup
 step_number = 100
 L = 25e-6 * meter
-num_of_particle = 20
+num_of_particle = 1
 alpha = alpha_real + alpha_imag
 
 w0 = L / 4
+# w0 = L / 16
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
+
+dt = 0.01 * 10 / gamma
+Γ = 2 * gamma * kB * T / mass
+ΔB = Γ * dt
+maxstep = 1200
 
 if __name__ == "__main__":
     print(f"{epsilon_0=}")

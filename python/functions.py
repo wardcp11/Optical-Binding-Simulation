@@ -1,6 +1,11 @@
-import cupy as cp
-from cupy import float64, complex128, full
-from cupy.testing import assert_allclose
+# import cupy as cp
+# from cupy import float64, complex128, full
+# from cupy.testing import assert_allclose
+import numpy as cp
+from numpy import float64, complex128, full
+from numpy.testing import assert_allclose
+
+
 from numpy.typing import NDArray
 from constants import (
     k,

@@ -1,5 +1,6 @@
-import cupy as cp
-from constants import num_of_particle, alpha, gamma, kB, T, mass, L
+# import cupy as cp
+import numpy as cp
+from constants import num_of_particle, alpha, gamma, mass, L, dt, maxstep, lam
 from functions import (
     create_G_mnij,
     create_G_mnij_scatter,
@@ -13,7 +14,8 @@ if __name__ == "__main__":
     # Generate positions and calculate incident field
     # polarizabilities = cp.full((num_of_particle, 3), alpha)
     polarizabilities = cp.full((num_of_particle, 3), alpha)
-    init_pos_arr = cp.random.uniform(-L / 2, L / 2, size=(num_of_particle, 3))
+    rng = cp.random.default_rng(42)
+    init_pos_arr = rng.uniform(-L / 2, L / 2, size=(num_of_particle, 3))
     # init_pos_arr = cp.asarray(
     #     [
     #         [-9888.3, -1688.19, 10996.0],
@@ -21,6 +23,8 @@ if __name__ == "__main__":
     #         [1644.37, 6523.84, 2778.41],
     #     ]
     # )
+    # init_pos_arr = cp.asarray([[2 * lam, 2 * lam, 0], [2 * lam, 0, 0]])
+
     pos_arr = init_pos_arr.copy()
 
     Einc_mi = gen_Einc_mi(pos_arr)
@@ -43,15 +47,15 @@ if __name__ == "__main__":
     F_grad = gen_F_grad(pos_arr, p_i)
 
     # NOTE: Time Evolution
-    dt = 10 / gamma
-    Γ = 2 * gamma * kB * T / mass
-    ΔB = Γ * dt
-    maxstep = 200
+    # dt = 10 / gamma
+    # dt = 10 / gamma
+    # Γ = 2 * gamma * kB * T / mass
+    # ΔB = Γ * dt
+    # maxstep = 1200
 
     velocity_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     full_pos_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     forces_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
-
 
     # initialize
     full_pos_arr[0] = init_pos_arr
@@ -67,7 +71,7 @@ if __name__ == "__main__":
         p_i = (-cp.linalg.inv(G_flattened) @ E_flattened).reshape(
             num_of_particle, 3
         )  # (N, 3)
-        forces_arr[step - 1] = gen_F_grad(pos_arr, p_i)
+        forces_arr[step - 1] = gen_F_grad(full_pos_arr[step - 1], p_i)
 
         full_pos_arr[step] = full_pos_arr[step - 1] + velocity_arr[step - 1] * dt
 
@@ -75,10 +79,10 @@ if __name__ == "__main__":
 
         velocity_arr[step] = velocity_arr[step - 1] * cp.exp(-gamma * dt) + forces_arr[
             step - 1
-        ] * (
-            dt / mass
-        )  # add brownian kick as well
+        ] * (dt / mass)
 
     # SAVE DATA AND PLOT IT
     cp.save("./data/position_data.npy", full_pos_arr)
+    cp.save("./data/velocity_data.npy", velocity_arr)
+    cp.save("./data/forces_data.npy", forces_arr)
     print("saved data")
