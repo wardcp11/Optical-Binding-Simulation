@@ -6,6 +6,7 @@ microgram = 1.0
 nanometer = 1.0
 femtocoulomb = 1.0
 kelvin = 1.0
+
 second = microsecond * 1e6
 kg = microgram * 1e9
 meter = nanometer * 1e9
@@ -17,8 +18,10 @@ ampere = coulomb / second
 watt = joule / second
 henry = second**2 / farad
 
+
 # Fundamental Constants
 pi = np.pi
+# epsilon_0 = 8.854187817e-12 * farad / meter
 epsilon_0 = 8.854187817e-12 * farad / meter
 mu_0 = pi * (4e-7) * henry / meter
 eta_0 = np.sqrt(mu_0 / epsilon_0)
@@ -26,7 +29,8 @@ c = 1.0 / (np.sqrt(epsilon_0 * mu_0))
 kB = 1.38e-23 * kg * meter**2 / ((second**2) * kelvin)
 
 # Colloid Properties
-a = 500e-9 * meter
+# a = 500e-9 * meter
+a = 600e-9 * meter
 vol = pi * a**3 * (4 / 3)
 rhoSIO2 = 2320 * kg / (meter**3)
 mass = vol * rhoSIO2
@@ -41,9 +45,11 @@ power = 1000 * watt
 I_0 = power / area
 
 # Polarizability
-epsilon_p = -3 * (1.33**2)
+# epsilon_p = -3 * (1.33**2)
+epsilon_p = -3
 mu_p = 1.0
-epsilon_b = 1.33**2
+# epsilon_b = 1.33**2
+epsilon_b = 1
 mu_b = 1.0
 eta_b = np.sqrt((mu_b / epsilon_b))
 k0 = 2.0 * pi / lam
@@ -64,20 +70,29 @@ alpha_imag = alpha_sr.imag
 # Physical Setup
 step_number = 100
 L = 25e-6 * meter
-num_of_particle = 1
+# L = 3 * lam
+num_of_particle = 4
 alpha = alpha_real + alpha_imag
 
-w0 = L / 4
-# w0 = L / 16
+# w0 = 2 * L
+w0 = 2 * 25e-6 * meter
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 
-dt = 0.01 * 10 / gamma
+dt = 0.00001 * 10 / gamma
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
-maxstep = 1200
+maxstep = 50000
+# maxstep = 800000
+
 
 if __name__ == "__main__":
-    print(f"{epsilon_0=}")
-    print(f"{epsilon_b=}")
-    print(f"{k=}")
+    print(f"{eta_0=}")
     print(f"{E0=}")
+    print(f"{mass=}")
+    print(f"{vol=}")
+    print(f"{gamma=}")
+    print(f"{T=}")
+    print(f"{kB*T=}")
+    print(f"{alpha_real=}")
+    print(f"{kB * T / (2 * a) * 1e15=}")
+    print(f"{alpha_imag=}")

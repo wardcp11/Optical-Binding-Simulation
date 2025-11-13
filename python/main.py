@@ -1,6 +1,6 @@
 # import cupy as cp
 import numpy as cp
-from constants import num_of_particle, alpha, gamma, mass, L, dt, maxstep, lam
+from constants import num_of_particle, alpha, gamma, mass, L, dt, maxstep, lam, ΔB
 from functions import (
     create_G_mnij,
     create_G_mnij_scatter,
@@ -76,10 +76,15 @@ if __name__ == "__main__":
         full_pos_arr[step] = full_pos_arr[step - 1] + velocity_arr[step - 1] * dt
 
         # Brownian kick goes here
+        randomDeltaV = (
+            cp.sqrt(ΔB) * cp.random.normal(0, 1, (num_of_particle, 3)) / cp.sqrt(2)
+        )
 
-        velocity_arr[step] = velocity_arr[step - 1] * cp.exp(-gamma * dt) + forces_arr[
-            step - 1
-        ] * (dt / mass)
+        velocity_arr[step] = (
+            velocity_arr[step - 1] * cp.exp(-gamma * dt)
+            + 100 * randomDeltaV
+            + forces_arr[step - 1] * (dt / mass)
+        )
 
     # SAVE DATA AND PLOT IT
     cp.save("./data/position_data.npy", full_pos_arr)

@@ -29,5 +29,15 @@ plt.ylabel("forces")
 plt.legend()
 plt.grid(True)
 
+data = np.load("./data/position_data.npy")
+plt.figure()
+plt.plot(t, data[:, :, 0], label="x-data")
+plt.plot(t, data[:, :, 1], label="y-data", linestyle="--")
+plt.plot(t, data[:, :, 2], label="z-data", linestyle=":")
+plt.xlabel("time step percentage")
+plt.ylabel("position")
+plt.legend()
+plt.grid(True)
+
 
 plt.show()

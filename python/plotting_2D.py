@@ -14,6 +14,9 @@ X, Y = cp.meshgrid(x, x)
 gaussian = E0 * cp.exp(1j * k * 0) * cp.exp(-(X**2 + Y**2) / w0**2)
 intensity = cp.abs(gaussian) ** 2
 
+# uniform = E0 * cp.ones_like(X)
+# intensity = cp.abs(uniform) ** 2
+
 
 def gen_frames():
     data = np.load("./data/position_data.npy")
@@ -24,7 +27,7 @@ def gen_frames():
     fig = plt.figure()
     ax = fig.add_subplot()
 
-    for t in range(0, time_steps, 10):
+    for t in range(0, time_steps, 1000):
         ax.cla()
         for n in range(num_of_particle):
             x = data[t, n, 0]
