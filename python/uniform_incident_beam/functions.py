@@ -221,12 +221,9 @@ def gen_Einc_mi(pos_arr: NDArray[float64]) -> NDArray[complex128]:
     """
 
     N = pos_arr.shape[0]
-    x = pos_arr[:, 0]
-    y = pos_arr[:, 1]
-    z = pos_arr[:, 2]
 
     Einc_mi = cp.zeros((N, 3), dtype=complex128)
-    Einc_mi[:, 0] = E0 * cp.exp(1j * k * z) * cp.exp(-(x**2 + y**2) / w0**2)
+    Einc_mi[:, 0] = E0
 
     return Einc_mi  # (N, 3)
 
@@ -236,50 +233,6 @@ def gen_Escat(
 ) -> NDArray[complex128]:
     G_mnij = create_G_mnij_scatter(pos_arr)
     return cp.einsum("nmij,mj->ni", G_mnij, pol_arr)
-
-
-# def gen_dx_Escat(
-#     pos_arr: NDArray[float64], pol_arr: NDArray[complex128]
-# ) -> NDArray[complex128]:
-#     # NOTE: This is a first pass not using array broadcasting
-#     π = cp.pi
-#     N = pos_arr.shape[0]
-#
-#     dx_Escat = cp.zeros((N, N, 3, 3), dtype=complex128)
-#     for n in range(N):
-#         for m in range(N):
-#             if n == m:
-#                 dx_Escat[n, m] = cp.zeros((3, 3))
-#             else:
-#                 xi = pos_arr[n] - pos_arr[m]
-#                 r = cp.linalg.norm(xi, axis=0)
-#                 kr = k * r
-#                 r_sq = r**2
-#
-#                 G = cp.exp(1j * kr) / (4 * π * r)
-#                 # Calculate d/dxl d/dxj d/dxi G
-#                 kron = cp.eye(3)  # (3, 3)
-#                 xiδjl = cp.einsum("i,jl->ijl", xi, kron)  # (3, 3, 3)
-#                 xjδil = cp.einsum("j,il->ijl", xi, kron)  # (3, 3, 3)
-#                 xlδij = cp.einsum("l,ij->ijl", xi, kron)  # (3, 3, 3)
-#                 xixjxl = cp.einsum("i,j,l->ijl", xi, xi, xi)  # (3, 3, 3)
-#
-#                 kron_terms = (r_sq * (kr**2 + 3j * kr - 3)) * (
-#                     xiδjl + xjδil + xlδij
-#                 )  # (3, 3, 3)
-#
-#                 dxldxjdxiG = (-G / r**6) * (
-#                     kron_terms + xixjxl * (1j * kr**3 - 6 * kr**2 - 15j * kr + 15)
-#                 )  # (3, 3, 3) # Passed
-#
-#                 full_terms = (
-#                     G * (k**2) * (r**-2) * xlδij * (1j * kr - 1) + dxldxjdxiG
-#                 ) / (
-#                     epsilon_0 * epsilon_b
-#                 )  # (3, 3, 3) # Passed
-#
-#                 dx_Escat[n, m] = cp.einsum("ijl,l->ij", full_terms, pol_arr[n])
-#     return dx_Escat.sum(axis=1)
 
 
 def gen_dx_Escat_vec(
@@ -333,15 +286,12 @@ def gen_dx_Einc(pos_arr: NDArray[float64]) -> NDArray[complex128]:
     dx_Einc = cp.zeros((N, 3, 3), dtype=complex128)
 
     for n in range(N):
-        x, y, z = pos_arr[n]
-        coeff = E0 * cp.exp(1j * k * z) * cp.exp(-(x**2 + y**2) / w0**2)
-
         matrix_term = cp.zeros((3, 3), dtype=complex128)
-        matrix_term[0, 0] = -2 * (w0**-2) * x
-        matrix_term[0, 1] = -2 * (w0**-2) * y
-        matrix_term[0, 2] = 1j * k
+        matrix_term[0, 0] = 0
+        matrix_term[0, 1] = 0
+        matrix_term[0, 2] = 0
 
-        dx_Einc[n] = coeff * matrix_term
+        dx_Einc[n] = matrix_term
 
     return dx_Einc
 

@@ -11,11 +11,8 @@ N = 256
 x = cp.linspace(-L / 2, L / 2, N)
 X, Y = cp.meshgrid(x, x)
 
-gaussian = E0 * cp.exp(1j * k * 0) * cp.exp(-(X**2 + Y**2) / w0**2)
-intensity = cp.abs(gaussian) ** 2
-
-# uniform = E0 * cp.ones_like(X)
-# intensity = cp.abs(uniform) ** 2
+uniform = E0 * cp.ones_like(X)
+intensity = cp.abs(uniform) ** 2
 
 
 def gen_frames():

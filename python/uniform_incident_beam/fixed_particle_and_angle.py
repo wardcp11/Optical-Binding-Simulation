@@ -30,8 +30,8 @@ if __name__ == "__main__":
     x2 = 1.2 * r * cp.cos(cp.pi)
     y2 = 1.2 * r * cp.sin(cp.pi)
 
-    x3 = r * cp.cos(cp.pi / 2)
-    y3 = r * cp.sin(cp.pi / 2)
+    x3 = 1.4 * r * cp.cos(cp.pi / 2)
+    y3 = 1.4 * r * cp.sin(cp.pi / 2)
 
     init_pos_arr = cp.asarray([[0, 0, 0], [x1, y1, 0], [x2, y2, 0], [x3, y3, 0]])
 
@@ -54,8 +54,6 @@ if __name__ == "__main__":
     # NOTE: Calculate scattering dyadic Green's function and find Escatterd
     G_mnij_scatter = create_G_mnij_scatter(pos_arr)
     Escattered_ni = cp.einsum("nmij,mj->ni", G_mnij_scatter, p_i)
-    # print(alpha_real * cp.abs(Escattered_ni) ** 2 / lam * 1e15)
-    # print(alpha_real * cp.abs(Escattered_ni) ** 2 / w0 * 1e15)
 
     F_grad = gen_F_grad(pos_arr, p_i)
 
@@ -102,9 +100,9 @@ if __name__ == "__main__":
 
         # print(f"{randomDeltaV * mass / dt=}")
 
-        # velocity_arr[step, 0] = cp.asarray(
-        #     [0, 0, 0]
-        # )  # set velocity to zero on the first particle
+        velocity_arr[step, 0] = cp.asarray(
+            [0, 0, 0]
+        )  # set velocity to zero on the first particle
 
         for i in range(num_of_particle):
             velocity_arr[step, i, 2] = 0
