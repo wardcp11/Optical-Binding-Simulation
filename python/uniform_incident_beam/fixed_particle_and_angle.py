@@ -27,13 +27,27 @@ if __name__ == "__main__":
     x1 = r * cp.cos(0)
     y1 = r * cp.sin(0)
 
-    x2 = 1.2 * r * cp.cos(cp.pi)
-    y2 = 1.2 * r * cp.sin(cp.pi)
+    x2 = r * cp.cos(2 * cp.pi * (1 / 5))
+    y2 = r * cp.sin(2 * cp.pi * (1 / 5))
 
-    x3 = 1.4 * r * cp.cos(cp.pi / 2)
-    y3 = 1.4 * r * cp.sin(cp.pi / 2)
+    x3 = r * cp.cos(2 * cp.pi * (2 / 5))
+    y3 = r * cp.sin(2 * cp.pi * (2 / 5))
 
-    init_pos_arr = cp.asarray([[0, 0, 0], [x1, y1, 0], [x2, y2, 0], [x3, y3, 0]])
+    x4 = r * cp.cos(2 * cp.pi * (3 / 5))
+    y4 = r * cp.sin(2 * cp.pi * (3 / 5))
+
+    x5 = r * cp.cos(2 * cp.pi * (4 / 5))
+    y5 = r * cp.sin(2 * cp.pi * (4 / 5))
+
+    init_pos_arr = cp.asarray(
+        [
+            [x1, y1, 0],
+            [x2, y2, 0],
+            [x3, y3, 0],
+            [x4, y4, 0],
+            [x5, y5, 0],
+        ]
+    )
 
     pos_arr = init_pos_arr.copy()
 
@@ -98,14 +112,14 @@ if __name__ == "__main__":
             + forces_arr[step - 1] * (dt / mass)
         )
 
-        # print(f"{randomDeltaV * mass / dt=}")
-
-        velocity_arr[step, 0] = cp.asarray(
-            [0, 0, 0]
-        )  # set velocity to zero on the first particle
+        # velocity_arr[step, 0] = cp.asarray(
+        #     [0, 0, 0]
+        # )  # set velocity to zero on the first particle
 
         for i in range(num_of_particle):
             velocity_arr[step, i, 2] = 0
+
+        print(f"step: {step} / {maxstep} ")
 
     # SAVE DATA AND PLOT IT
     cp.save("./data/position_data.npy", full_pos_arr)

@@ -223,7 +223,8 @@ def gen_Einc_mi(pos_arr: NDArray[float64]) -> NDArray[complex128]:
     N = pos_arr.shape[0]
 
     Einc_mi = cp.zeros((N, 3), dtype=complex128)
-    Einc_mi[:, 0] = E0
+    Einc_mi[:, 0] = E0 * cp.cos(cp.pi / 180 * 2 / 3 * (360 / 5))
+    Einc_mi[:, 1] = E0 * cp.sin(cp.pi / 180 * 2 / 3 * (360 / 5))
 
     return Einc_mi  # (N, 3)
 

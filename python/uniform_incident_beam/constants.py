@@ -71,18 +71,17 @@ alpha_imag = alpha_sr.imag
 step_number = 100
 L = 25e-6 * meter
 # L = 3 * lam
-num_of_particle = 4
+num_of_particle = 5
 alpha = alpha_real + alpha_imag
 
 # w0 = 2 * L
 w0 = 2 * 25e-6 * meter
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 
-dt = 0.00001 * 10 / gamma
+dt = 0.000001 * 10 / gamma
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
-# maxstep = 50000
-maxstep = 800000
+maxstep = 2000000
 
 
 if __name__ == "__main__":

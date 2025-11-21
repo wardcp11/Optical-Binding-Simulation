@@ -24,7 +24,7 @@ def gen_frames():
     fig = plt.figure()
     ax = fig.add_subplot()
 
-    for t in range(0, time_steps, 1000):
+    for t in range(0, time_steps, 10000):
         ax.cla()
         for n in range(num_of_particle):
             x = data[t, n, 0]
