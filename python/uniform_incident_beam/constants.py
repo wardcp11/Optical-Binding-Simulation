@@ -81,7 +81,8 @@ E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 dt = 0.000001 * 10 / gamma
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
-maxstep = 2000000
+maxstep = 1000000
+# maxstep = 2000000
 
 
 if __name__ == "__main__":

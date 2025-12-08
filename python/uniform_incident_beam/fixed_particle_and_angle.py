@@ -90,6 +90,7 @@ if __name__ == "__main__":
     for step in range(1, maxstep + 1):
         # Einc_mi = gen_Einc_Gaussian_mi(full_pos_arr[step - 1])
         Einc_mi = gen_Einc_mi(full_pos_arr[step - 1])
+        E_flattened = E_flattened = Einc_mi.reshape(3 * num_of_particle)
         G_nmij = create_G_mnij(full_pos_arr[step - 1], polarizabilities)
         G_flattened = G_nmij.transpose(0, 2, 1, 3).reshape(
             3 * num_of_particle, 3 * num_of_particle
