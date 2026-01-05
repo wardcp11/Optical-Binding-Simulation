@@ -36,8 +36,8 @@ if __name__ == "__main__":
     x4 = r * cp.cos(2 * cp.pi * (3 / 5))
     y4 = r * cp.sin(2 * cp.pi * (3 / 5))
 
-    x5 = r * cp.cos(2 * cp.pi * (4 / 5))
-    y5 = r * cp.sin(2 * cp.pi * (4 / 5))
+    # x5 = r * cp.cos(2 * cp.pi * (4 / 5))
+    # y5 = r * cp.sin(2 * cp.pi * (4 / 5))
 
     init_pos_arr = cp.asarray(
         [
@@ -45,7 +45,7 @@ if __name__ == "__main__":
             [x2, y2, 0],
             [x3, y3, 0],
             [x4, y4, 0],
-            [x5, y5, 0],
+            # [x5, y5, 0],
         ]
     )
 
@@ -95,6 +95,12 @@ if __name__ == "__main__":
         G_flattened = G_nmij.transpose(0, 2, 1, 3).reshape(
             3 * num_of_particle, 3 * num_of_particle
         )
+
+        ## extract eignevalues of G matrix
+        # eigenvalues, _ = cp.linalg.eig(G_flattened)
+        # print(eigenvalues.shape)
+        # cp.save("./eigenvalues_unmodified_G.npy", eigenvalues)
+
         p_i = (-cp.linalg.inv(G_flattened) @ E_flattened).reshape(
             num_of_particle, 3
         )  # (N, 3)

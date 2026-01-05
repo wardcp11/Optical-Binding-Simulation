@@ -2,7 +2,7 @@
 # from cupy import float64, complex128, full
 # from cupy.testing import assert_allclose
 import numpy as cp
-from numpy import float64, complex128, full
+from numpy import float64, complex128
 from numpy.testing import assert_allclose
 
 
@@ -233,6 +233,21 @@ def gen_Einc_mi(pos_arr: NDArray[float64]) -> NDArray[complex128]:
 def gen_Escat(
     pos_arr: NDArray[float64], pol_arr: NDArray[complex128]
 ) -> NDArray[complex128]:
+    """
+    Generates the scattered E-field by taking the dot product between the
+    position array and the polarizability array.
+
+    Parameters
+    ----------
+    pos_arr: cp.ndarray
+        Array of particle positons
+    pol_arr: cp.ndarray
+        Array of particle polarizabilities
+
+    Returns
+    cp.ndarray
+        Escat_mi with a shape of (N, 3), where N is the number of particles
+    """
     G_mnij = create_G_mnij_scatter(pos_arr)
     return cp.einsum("nmij,mj->ni", G_mnij, pol_arr)
 
@@ -240,6 +255,50 @@ def gen_Escat(
 def gen_dx_Escat_vec(
     pos_arr: NDArray[float64], pol_arr: NDArray[complex128]
 ) -> NDArray[complex128]:
+    """
+    Compute the spatial derivative of the scattered electric field from a set of
+    point dipoles using the free-space (background-medium) scalar Green's function.
+
+    This routine evaluates the rank-3 tensor
+        dx_Escat[m, i, l] = ∂E_scat,i(r_m) / ∂x_l
+    where the scattered field at observation point r_m is produced by dipoles at
+    source points r_n with dipole moments p_n (given by ``pol_arr``). The
+    computation uses analytic derivatives of the Helmholtz Green's function
+        G(r) = exp(i k r) / (4π r)
+    and contracts the resulting interaction tensor with the dipole moments.
+
+    Parameters
+    ----------
+    pos_arr : NDArray[np.float64]
+        Particle positions with shape (N, 3). ``pos_arr[m]`` is the observation
+        location r_m and ``pos_arr[n]`` is the source location r_n.
+        Units must be consistent with ``k`` (e.g., meters).
+    pol_arr : NDArray[np.complex128]
+        Dipole moments / polarizations with shape (N, 3). ``pol_arr[n, j]`` is
+        the j-th component of the dipole moment p_n. Units must be consistent
+        with your Green's-function convention and the scaling by
+        ``epsilon_0 * epsilon_b``.
+
+    Returns
+    -------
+    dx_Escat : NDArray[np.complex128]
+        Array of shape (N, 3, 3) giving the field gradient at each particle:
+        ``dx_Escat[m, i, l] = ∂E_scat,i(r_m) / ∂x_l``.
+        The first index selects the observation particle, the second the field
+        component, and the third the spatial-derivative component.
+
+    Notes
+    -----
+    - Self-interactions (m == n) are excluded by masking the diagonal of the
+      pairwise interaction tensor to zero.
+    - This implementation assumes globally defined constants:
+        ``num_of_particle`` (N), ``k`` (wavenumber), ``epsilon_0``,
+        ``epsilon_b`` (background relative permittivity or dielectric factor),
+      and a CuPy-compatible namespace ``cp``.
+    - The formula involves powers of 1/r; very small separations can lead to
+      numerical blow-up. Enforcing a minimum separation or adding regularization
+      is often necessary in dynamics.
+    """
     π = cp.pi
     N = num_of_particle
 
@@ -283,6 +342,40 @@ def gen_dx_Escat_vec(
 
 
 def gen_dx_Einc(pos_arr: NDArray[float64]) -> NDArray[complex128]:
+    """
+    Compute the spatial derivative (Jacobian) of a uniform incident electric field.
+
+    For a spatially uniform incident beam/field, the electric field does not vary
+    with position:
+        E_inc(r) = constant
+    Therefore all spatial derivatives vanish:
+        ∂E_inc,i / ∂x_l = 0  for all i,l.
+
+    This function returns a zero tensor with the same “field-gradient” layout used
+    elsewhere in the simulation:
+        dx_Einc[n, i, l] = ∂E_inc,i(r_n) / ∂x_l.
+
+    Parameters
+    ----------
+    pos_arr : NDArray[np.float64]
+        Particle positions with shape (N, 3). Included for API consistency with
+        other incident-field generators; the result is independent of position for
+        a uniform field.
+
+    Returns
+    -------
+    dx_Einc : NDArray[np.complex128]
+        Zero array of shape (N, 3, 3) where
+        ``dx_Einc[n, i, l] = ∂E_inc,i(r_n) / ∂x_l = 0`` for all particles n and
+        components i,l.
+
+    Notes
+    -----
+    - The output dtype is complex to match the rest of the frequency-domain /
+      phasor-field pipeline.
+    - If you later switch to a plane wave with spatial phase (e.g., exp(i k·r))
+      or a Gaussian beam, this derivative will generally be nonzero.
+    """
     N = num_of_particle
 
     dx_Einc = cp.zeros((N, 3, 3), dtype=complex128)
@@ -301,6 +394,49 @@ def gen_dx_Einc(pos_arr: NDArray[float64]) -> NDArray[complex128]:
 def gen_F_grad(
     pos_arr: NDArray[float64], pol_arr: NDArray[complex128]
 ) -> NDArray[complex128]:
+    """
+    Compute the optical gradient force on each particle from the total electric field.
+
+    This function forms the total field at each particle as the sum of an incident
+    field and a scattered field,
+        E_tot = E_inc + E_scat,
+    along with their spatial derivatives (field Jacobians),
+        ∂E_tot,i / ∂x_l = ∂E_inc,i / ∂x_l + ∂E_scat,i / ∂x_l,
+    and evaluates the gradient-force expression (component-wise)
+        F_grad,l ∝ Re{ E_tot · (∂E_tot/∂x_l)* }.
+
+    In this implementation the force is computed as
+        F_grad = (alpha_real / 4) * Re[ E_tot · (∇E_tot)* + E_tot* · (∇E_tot) ]
+    which is an explicitly real form obtained by adding the complex-conjugate
+    product so the result is real-valued up to numerical noise.
+
+    Parameters
+    ----------
+    pos_arr : NDArray[np.float64]
+        Particle positions with shape (N, 3).
+    pol_arr : NDArray[np.complex128]
+        Dipole moments / polarizations with shape (N, 3), used to generate the
+        scattered field and its spatial derivatives.
+
+    Returns
+    -------
+    F_grad : NDArray[np.complex128]
+        Gradient force array with shape (N, 3). In typical usage this is purely
+        real (imaginary part ~ 0) because the expression takes ``cp.real(...)``.
+        Each row corresponds to the Cartesian force components on a particle.
+
+    Notes
+    -----
+    - Depends on the following helper functions and globals:
+        * ``gen_Einc_mi``: incident field E_inc(r_n), shape (N, 3)
+        * ``gen_dx_Einc``: incident field gradient, shape (N, 3, 3)
+        * ``gen_Escat``: scattered field from dipoles, shape (N, 3)
+        * ``gen_dx_Escat_vec``: scattered field gradient, shape (N, 3, 3)
+        * ``alpha_real``: real part of polarizability used for the gradient force
+    - Uses Einstein summation via ``cp.einsum("nj,njl->nl", ...)``:
+        index ``j`` contracts field components, and ``l`` indexes the spatial
+        derivative direction, producing a force component for each l.
+    """
     Einc = gen_Einc_mi(pos_arr)  # (N, 3)
     dx_Einc = gen_dx_Einc(pos_arr)  # (N, 3, 3)
 

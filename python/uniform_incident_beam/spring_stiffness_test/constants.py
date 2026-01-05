@@ -74,14 +74,24 @@ L = 25e-6 * meter
 
 
 r = 2 * lam
-x1 = r * np.cos(0)
-y1 = r * np.sin(0)
+x1 = 0
+y1 = r
 
-x2 = r * np.cos(2 * np.pi * (1 / 5))
-y2 = r * np.sin(2 * np.pi * (1 / 5))
+x2 = 0
+y2 = -r
 
-x3 = r * np.cos(2 * np.pi * (2 / 5))
-y3 = r * np.sin(2 * np.pi * (2 / 5))
+x3 = r
+y3 = 0
+
+
+# x1 = r * np.cos(0)
+# y1 = r * np.sin(0)
+#
+# x2 = r * np.cos(2 * np.pi * (1 / 5))
+# y2 = r * np.sin(2 * np.pi * (1 / 5))
+#
+# x3 = r * np.cos(2 * np.pi * (2 / 5))
+# y3 = r * np.sin(2 * np.pi * (2 / 5))
 
 # x4 = r * np.cos(2 * np.pi * (3 / 5))
 # y4 = r * np.sin(2 * np.pi * (3 / 5))
@@ -93,7 +103,7 @@ init_pos_arr = np.asarray(
     [
         [x1, y1, 0],
         [x2, y2, 0],
-        [x3, y3, 0],
+        # [x3, y3, 0],
         # [x4, y4, 0],
         # [x5, y5, 0],
     ]
@@ -101,28 +111,30 @@ init_pos_arr = np.asarray(
 
 num_of_particle = init_pos_arr.shape[0]
 
-
 alpha = alpha_real + alpha_imag
 
 # w0 = 2 * L
 w0 = 2 * 25e-6 * meter
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 
-dt = 0.00001 * 10 / gamma
+dt = 0.000001 * 10 / gamma
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
 # maxstep = 100000
-maxstep = 1000000
+maxstep = 20000 * 5
 
+
+# print(dt * maxstep)
 
 if __name__ == "__main__":
-    print(f"{eta_0=}")
-    print(f"{E0=}")
-    print(f"{mass=}")
-    print(f"{vol=}")
-    print(f"{gamma=}")
-    print(f"{T=}")
-    print(f"{kB*T=}")
-    print(f"{alpha_real=}")
-    print(f"{kB * T / (2 * a) * 1e15=}")
-    print(f"{alpha_imag=}")
+    # print(f"{eta_0=}")
+    # print(f"{E0=}")
+    # print(f"{mass=}")
+    # print(f"{vol=}")
+    # print(f"{gamma=}")
+    # print(f"{T=}")
+    # print(f"{kB*T=}")
+    # print(f"{alpha_real=}")
+    # print(f"{kB * T / (2 * a) * 1e15=}")
+    # print(f"{alpha_imag=}")
+    print(dt * gamma)

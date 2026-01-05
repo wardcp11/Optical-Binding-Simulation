@@ -71,7 +71,7 @@ alpha_imag = alpha_sr.imag
 step_number = 100
 L = 25e-6 * meter
 # L = 3 * lam
-num_of_particle = 5
+num_of_particle = 4
 alpha = alpha_real + alpha_imag
 
 # w0 = 2 * L

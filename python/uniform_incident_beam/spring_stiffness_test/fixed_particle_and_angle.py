@@ -36,15 +36,19 @@ if __name__ == "__main__":
         3 * num_of_particle, 3 * num_of_particle
     )
     E_flattened = Einc_mi.reshape(3 * num_of_particle)
-    p_i = (-cp.linalg.inv(G_flattened) @ E_flattened).reshape(
-        num_of_particle, 3
-    )  # (N, 3)
+
+    # Direct inverse and solve,
+    # p_i = (-cp.linalg.inv(G_flattened) @ E_flattened).reshape(
+    #     num_of_particle, 3
+    # )  # (N, 3)
+
+    p_i = cp.linalg.solve(G_flattened, -E_flattened).reshape(num_of_particle, 3)
 
     # NOTE: Calculate scattering dyadic Green's function and find Escatterd
     G_mnij_scatter = create_G_mnij_scatter(pos_arr)
-    Escattered_ni = cp.einsum("nmij,mj->ni", G_mnij_scatter, p_i)
+    # Escattered_ni = cp.einsum("nmij,mj->ni", G_mnij_scatter, p_i)
 
-    F_grad = gen_F_grad(pos_arr, p_i)
+    F_grad = gen_F_grad(pos_arr, p_i)  # type: ignore
 
     # NOTE: Time Evolution
     # dt = 10 / gamma
@@ -56,6 +60,7 @@ if __name__ == "__main__":
     velocity_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     full_pos_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     forces_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
+    eigenvalue_arr = []
 
     # initialize
     full_pos_arr[0] = init_pos_arr
@@ -72,9 +77,8 @@ if __name__ == "__main__":
         )
 
         ## extract eigenvalues of G_matrix
-        # eigenvalues, _ = cp.linalg.eig(G_flattened)
-        # print(eigenvalues.shape)
-        # cp.save("./eigenvalues_modified_G.npy", eigenvalues)
+        eigenvalues, _ = cp.linalg.eig(G_flattened)
+        eigenvalue_arr.append(cp.abs(eigenvalues))
 
         p_i = (-cp.linalg.inv(G_flattened) @ E_flattened).reshape(
             num_of_particle, 3
@@ -103,9 +107,9 @@ if __name__ == "__main__":
 
         print(f"step: {step} / {maxstep} ")
 
-    # SAVE DATA AND PLOT IT
-    cp.save("./data/position_data.npy", full_pos_arr)
-    cp.save("./data/velocity_data.npy", velocity_arr)
-    cp.save("./data/forces_data.npy", forces_arr)
-    cp.save("./data/induced_dipoles.npy", p_i)
+    # SAVE DATA
+    cp.save("./data/position_data.npy", cp.asarray(full_pos_arr))
+    cp.save("./data/velocity_data.npy", cp.asarray(velocity_arr))
+    cp.save("./data/forces_data.npy", cp.asarray(forces_arr))
+    cp.save("./data/eigenvalues_data.npy", cp.asarray(eigenvalue_arr))
     print("saved data")

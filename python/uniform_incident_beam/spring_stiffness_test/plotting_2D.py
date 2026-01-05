@@ -24,7 +24,7 @@ def gen_frames():
     fig = plt.figure()
     ax = fig.add_subplot()
 
-    for t in range(0, time_steps, 1000):
+    for t in range(0, time_steps, 100):
         ax.cla()
         for n in range(num_of_particle):
             x = data[t, n, 0]
@@ -52,7 +52,7 @@ def gen_video():
     images.sort(key=lambda f: int(re.search(r"time_(\d+)", f).group(1)))  # type: ignore
 
     # with imageio.get_writer("./data/video_2D.mp4", fps=60) as writer:
-    with imageio.get_writer("./plotting/videos/video_2D.mp4", fps=60) as writer:
+    with imageio.get_writer("./plotting/videos/video_2D.mp4", fps=30) as writer:
         for filename in images:
             image = imageio.imread(filename)
             writer.append_data(image)  # type: ignore
