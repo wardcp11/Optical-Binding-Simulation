@@ -387,8 +387,13 @@ def gen_dx_Einc_gaussian(pos_arr: NDArray[float64]) -> NDArray[complex128]:
 
         matrix_term = cp.zeros((3, 3), dtype=complex128)
         matrix_term[0, 0] = cp.cos(pol_angle) * -2 * (w0**-2) * x
-        matrix_term[0, 1] = cp.sin(pol_angle) * -2 * (w0**-2) * y
+        matrix_term[0, 1] = cp.cos(pol_angle) * -2 * (w0**-2) * y
         matrix_term[0, 2] = 1j * k
+
+        matrix_term[1, 0] = cp.sin(pol_angle) * -2 * (w0**-2) * x
+        matrix_term[1, 1] = cp.sin(pol_angle) * -2 * (w0**-2) * y
+        matrix_term[1, 2] = 1j * k
+
 
         dx_Einc[n] = coeff * matrix_term
 

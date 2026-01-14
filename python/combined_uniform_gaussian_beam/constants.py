@@ -107,11 +107,11 @@ y5 = r
 
 init_pos_arr = np.asarray(
     [
-        # [x1, y1, 0],
-        # [x2, y2, 0],
+        [x1, y1, 0],
+        [x2, y2, 0],
         # [x3, y3, 0],
-        # [x4, y4, 0],
-        [r, r, 0],
+        [x4, y4, 0],
+        # [r, r, 0],
     ]
 )
 
@@ -123,13 +123,11 @@ alpha = alpha_real + alpha_imag
 w0 = 3 * lam
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 
-dt = 0.0001 * 10 / gamma
+dt = (0.0001 * 10 / gamma) / 10
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
 # maxstep = 100000
-maxstep = 100000
-
-# print(dt * maxstep)
+maxstep = 100000 * 10
 
 if __name__ == "__main__":
     # print(f"{eta_0=}")
@@ -139,7 +137,7 @@ if __name__ == "__main__":
     # print(f"{gamma=}")
     # print(f"{T=}")
     # print(f"{kB*T=}")
-    # print(f"{alpha_real=}")
+    print(f"{alpha_real=}")
     # print(f"{kB * T / (2 * a) * 1e15=}")
-    # print(f"{alpha_imag=}")
-    print(dt * gamma)
+    print(f"{alpha_imag=}")
+    # print(dt * gamma)

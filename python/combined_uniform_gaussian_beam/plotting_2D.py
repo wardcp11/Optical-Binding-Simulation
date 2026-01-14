@@ -94,8 +94,7 @@ def gen_video():
 
     # with imageio.get_writer("./data/video_2D.mp4", fps=60) as writer:
     with imageio.get_writer("./plotting/videos/video_2D.mp4", fps=30) as writer:
-        for filename in images:
-            print(filename)
+        for filename in tqdm(images, desc="Compiling frames", unit="frame"):
             image = imageio.imread(filename)
             writer.append_data(image)  # type: ignore
 

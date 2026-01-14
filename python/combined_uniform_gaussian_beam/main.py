@@ -73,6 +73,7 @@ if __name__ == "__main__":
         p_i = -cp.linalg.solve(G_flattened, E_flattened).reshape(
             num_of_particle, 3
         )  # (N, 3)
+
         forces_arr[step - 1] = gen_F_grad(full_pos_arr[step - 1], p_i)  # type: ignore
 
         full_pos_arr[step] = full_pos_arr[step - 1] + velocity_arr[step - 1] * dt
