@@ -1,0 +1,145 @@
+import numpy as np
+
+use_gaussian_beam = True
+pol_angle = np.pi / 4
+
+# Units
+microsecond = 1.0
+microgram = 1.0
+nanometer = 1.0
+femtocoulomb = 1.0
+kelvin = 1.0
+
+second = microsecond * 1e6
+kg = microgram * 1e9
+meter = nanometer * 1e9
+coulomb = femtocoulomb * 1e15
+joule = kg * meter**2 * (second**-2)
+volt = joule / coulomb
+farad = coulomb / volt
+ampere = coulomb / second
+watt = joule / second
+henry = second**2 / farad
+
+
+# Fundamental Constants
+pi = np.pi
+# epsilon_0 = 8.854187817e-12 * farad / meter
+epsilon_0 = 8.854187817e-12 * farad / meter
+mu_0 = pi * (4e-7) * henry / meter
+eta_0 = np.sqrt(mu_0 / epsilon_0)
+c = 1.0 / (np.sqrt(epsilon_0 * mu_0))
+kB = 1.38e-23 * kg * meter**2 / ((second**2) * kelvin)
+
+# Colloid Properties
+# a = 500e-9 * meter
+a = 600e-9 * meter
+vol = pi * a**3 * (4 / 3)
+rhoSIO2 = 2320 * kg / (meter**3)
+mass = vol * rhoSIO2
+mu = 1.6e-3 * kg / (meter * second)
+gamma = 6.0 * pi * mu * a / mass
+T = 300
+
+# Laser Properties
+lam = 600e-9 * meter
+area = 100 * (1e-6 * meter) ** 2
+power = 1000 * watt
+I_0 = power / area
+
+# Polarizability
+# epsilon_p = -3 * (1.33**2)
+epsilon_p = -3
+mu_p = 1.0
+# epsilon_b = 1.33**2
+epsilon_b = 1
+mu_b = 1.0
+eta_b = np.sqrt((mu_b / epsilon_b))
+k0 = 2.0 * pi / lam
+omega = k0 * c
+k = k0 * np.sqrt(epsilon_b)
+alpha_sr = complex(
+    4.0
+    * pi
+    * epsilon_0
+    * epsilon_b
+    * a**3
+    * ((epsilon_p - epsilon_b) / (epsilon_p + 2 * epsilon_b))
+)
+alpha_s = ((1 / alpha_sr) - 1j * (k**3 / (6 * pi * epsilon_0 * epsilon_b))) ** -1
+alpha_real = alpha_sr.real
+alpha_imag = alpha_sr.imag
+
+# Physical Setup
+# step_number = 100
+L = 25e-6 * meter
+# L = 3 * lam
+
+
+r = 2 * lam
+x1 = 0
+y1 = r
+
+x2 = r
+y2 = 0
+
+x3 = -r
+y3 = 0
+
+x4 = 0
+y4 = -r
+
+x5 = r
+y5 = r
+
+# x1 = r * np.cos(0)
+# y1 = r * np.sin(0)
+#
+# x2 = r * np.cos(2 * np.pi * (1 / 5))
+# y2 = r * np.sin(2 * np.pi * (1 / 5))
+#
+# x3 = r * np.cos(2 * np.pi * (2 / 5))
+# y3 = r * np.sin(2 * np.pi * (2 / 5))
+
+# x4 = r * np.cos(2 * np.pi * (3 / 5))
+# y4 = r * np.sin(2 * np.pi * (3 / 5))
+
+
+init_pos_arr = np.asarray(
+    [
+        # [x1, y1, 0],
+        # [x2, y2, 0],
+        # [x3, y3, 0],
+        # [x4, y4, 0],
+        [r, r, 0],
+    ]
+)
+
+num_of_particle = init_pos_arr.shape[0]
+
+alpha = alpha_real + alpha_imag
+
+# w0 = 2 * L
+w0 = 3 * lam
+E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
+
+dt = 0.0001 * 10 / gamma
+Γ = 2 * gamma * kB * T / mass
+ΔB = Γ * dt
+# maxstep = 100000
+maxstep = 100000
+
+# print(dt * maxstep)
+
+if __name__ == "__main__":
+    # print(f"{eta_0=}")
+    # print(f"{E0=}")
+    # print(f"{mass=}")
+    # print(f"{vol=}")
+    # print(f"{gamma=}")
+    # print(f"{T=}")
+    # print(f"{kB*T=}")
+    # print(f"{alpha_real=}")
+    # print(f"{kB * T / (2 * a) * 1e15=}")
+    # print(f"{alpha_imag=}")
+    print(dt * gamma)
