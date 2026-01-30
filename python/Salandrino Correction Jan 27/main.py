@@ -18,7 +18,7 @@ from functions import (
     create_G_mnij_scatter,
     gen_Einc_mi,
     gen_F_grad,
-    gen_dx_Einc,
+    coulomb_force,
 )
 
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         Escattered_ni = cp.einsum("nmij,mj->ni", G_mnij_scatter, p_i_arr[step - 1])
         E_n_arr[step - 1] = Einc_mi + Escattered_ni
 
-        forces_arr[step - 1] = gen_F_grad(full_pos_arr[step - 1], p_i)  # type: ignore
+        forces_arr[step - 1] = gen_F_grad(full_pos_arr[step - 1], p_i) + coulomb_force(full_pos_arr[step - 1])  # type: ignore
 
         full_pos_arr[step] = full_pos_arr[step - 1] + velocity_arr[step - 1] * dt
         # full_pos_arr[step] = rk45_step_x(

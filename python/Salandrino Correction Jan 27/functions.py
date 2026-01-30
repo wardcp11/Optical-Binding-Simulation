@@ -19,6 +19,7 @@ from constants import (
     num_of_particle,
     use_gaussian_beam,
     pol_angle,
+    q0,
 )
 
 
@@ -533,5 +534,16 @@ def gen_F_grad(
     return F_grad
 
 
+def coulomb_force(pos_arr: NDArray[float64]):
+    pos_diff_arr = pos_arr[:, None, :] - pos_arr[None, :, :]  # (N, N, 3)
+    R = cp.linalg.norm(pos_diff_arr, axis=2) + cp.eye(num_of_particle)  # (N, N)
+
+    gradient_array = q0 * pos_diff_arr / (R[:, :, None]) ** 3
+
+    coul_force = cp.sum(gradient_array, axis=1)  # (num_of_particle, 3)
+
+    return coul_force
+
+
 if __name__ == "__main__":
-    print("Hello world")
+    print("Hello World")

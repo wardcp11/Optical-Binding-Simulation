@@ -1,7 +1,7 @@
 import numpy as np
 
-use_gaussian_beam = False
-pol_angle = 0
+use_gaussian_beam = True
+pol_angle = np.pi / 2
 
 # Units
 microsecond = 1.0
@@ -106,16 +106,16 @@ y5 = r
 
 # init_pos_arr = np.asarray(
 #     [
-#         [-2 * r, r, 0],
-#         [r, 0, 0],
-#         [0, 0, 0],
-#         [r, r, 0],
-#         [2 * r, r, 0],
-#         [-r, -r, 0],
-#         [-2 * r, -2 * r, 0],
-#         # [451.93, 26.3571, 0],
-#         # [-496.532, -146.504, 0],
-#         # [-586.027, 512.719, 0],
+#         # [-2 * r, r, 0],
+#         # [r, 0, 0],
+#         # [0, 0, 0],
+#         # [r, r, 0],
+#         # [2 * r, r, 0],
+#         # [-r, -r, 0],
+#         # [-2 * r, -2 * r, 0],
+#         [451.93, 26.3571, 0],
+#         [-496.532, -146.504, 0],
+#         [-586.027, 512.719, 0],
 #         # [500, 500, 0],
 #         # [-53, 573, 0],
 #         # [532, 554, 0],
@@ -125,7 +125,7 @@ y5 = r
 # )
 
 np.random.seed(125)
-init_pos_arr = np.random.uniform(low=-10 * lam / 2, high=10 * lam / 2, size=(20, 3))
+init_pos_arr = np.random.uniform(low=-10 * lam / 2, high=10 * lam / 2, size=(10, 3))
 init_pos_arr[:, 2] = 0
 
 num_of_particle = init_pos_arr.shape[0]
@@ -134,11 +134,13 @@ num_of_particle = init_pos_arr.shape[0]
 w0 = 40 * lam
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 
+q0 = 5e-3
+
 # dt = 0.0000001 * 10 / gamma
 dt = 1
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
-maxstep = 1000000
+maxstep = 300000
 # maxstep = 100000
 
 if __name__ == "__main__":
