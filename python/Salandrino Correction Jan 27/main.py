@@ -18,21 +18,9 @@ from functions import (
     create_G_mnij_scatter,
     gen_Einc_mi,
     gen_F_grad,
+    gen_Hscat,
     coulomb_force,
 )
-
-
-# def rk45_step_x(x, v, t0, dt):
-#     x0 = x.reshape(-1)
-#     v0 = v.reshape(-1)
-#
-#     def rhs(t, x):
-#         return v0
-#
-#     sol = solve_ivp(
-#         rhs, (t0, t0 + dt), x0, method="RK45", t_eval=[t0 + dt], rtol=1e-10, atol=1e-12
-#     )
-#     return sol.y[:, -1].reshape(x.shape)
 
 
 if __name__ == "__main__":
@@ -63,6 +51,10 @@ if __name__ == "__main__":
 
     F_grad = gen_F_grad(pos_arr, p_i)  # type: ignore
 
+    gen_Hscat(pos_arr, p_i)
+    print(gen_Hscat(pos_arr, p_i))
+    exit()
+
     velocity_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     full_pos_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     forces_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
@@ -92,10 +84,6 @@ if __name__ == "__main__":
         det_G_arr[step - 1] = cp.linalg.det(G_flattened)
         max_G_arr[step - 1] = cp.max(G_flattened)
 
-        ## extract eigenvalues of G_matrix
-        # eigenvalues, _ = cp.linalg.eig(G_flattened)
-        # eigenvalue_arr.append(cp.abs(eigenvalues))
-
         inv = cp.linalg.inv(alpha * G_flattened)
         p_i = ((inv @ E_flattened) / alpha).reshape(num_of_particle, 3)
 
@@ -108,18 +96,15 @@ if __name__ == "__main__":
         forces_arr[step - 1] = gen_F_grad(full_pos_arr[step - 1], p_i) + coulomb_force(full_pos_arr[step - 1])  # type: ignore
 
         full_pos_arr[step] = full_pos_arr[step - 1] + velocity_arr[step - 1] * dt
-        # full_pos_arr[step] = rk45_step_x(
-        #     full_pos_arr[step - 1], velocity_arr[step - 1], t0=step * dt, dt=dt
-        # )
 
         # Brownian kick goes here
-        # randomDeltaV = (
-        #     cp.sqrt(ΔB) * cp.random.normal(0, 1, (num_of_particle, 3)) / cp.sqrt(2)
-        # )
+        randomDeltaV = (
+            cp.sqrt(ΔB) * cp.random.normal(0, 1, (num_of_particle, 3)) / cp.sqrt(2)
+        )
 
         velocity_arr[step] = (
             velocity_arr[step - 1] * cp.exp(-gamma * dt)
-            # + randomDeltaV
+            # + (0.001 * randomDeltaV)
             + forces_arr[step - 1] * (dt / mass)
         )
 
@@ -145,8 +130,6 @@ if __name__ == "__main__":
             forces_arr[step, i, 2] = 0
             velocity_arr[step, i, 2] = 0
             full_pos_arr[step, i, 2] = 0
-
-        # print(f"step: {step} / {maxstep} ")
 
     # SAVE DATA
     cp.save("./data/p_i_data.npy", cp.asarray(p_i_arr))

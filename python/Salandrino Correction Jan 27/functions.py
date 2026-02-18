@@ -14,7 +14,7 @@ from constants import (
     E0,
     a,
     w0,
-    alpha,
+    use_circular_polarization,
     alpha_real,
     num_of_particle,
     use_gaussian_beam,
@@ -210,9 +210,11 @@ def print_condition_number(A: NDArray):
         )
 
 
-def gen_Einc_mi_gaussian(pos_arr: NDArray[float64]) -> NDArray[complex128]:
+def gen_Einc_mi_gaussian_linear_polarization(
+    pos_arr: NDArray[float64],
+) -> NDArray[complex128]:
     """
-    Generates the incident electric field. Assumes x-polarized Gaussian beam.
+    Generates the incident electric field.
 
     Parameters
     ----------
@@ -246,6 +248,41 @@ def gen_Einc_mi_gaussian(pos_arr: NDArray[float64]) -> NDArray[complex128]:
     return Einc_mi  # (N, 3)
 
 
+def gen_Einc_mi_gaussian_circular_polarization(
+    pos_arr: NDArray[float64],
+) -> NDArray[complex128]:
+    """
+    Generates the incident electric field.
+
+    Parameters
+    ----------
+    pos_arr: cp.ndarray
+        Array of particle positons
+
+    Returns
+    cp.ndarray
+        Einc_mi with a shape of (N, 3), where N is the number of particles
+    """
+
+    N = pos_arr.shape[0]
+    x = pos_arr[:, 0]
+    y = pos_arr[:, 1]
+    z = pos_arr[:, 2]
+
+    Einc_mi = cp.zeros((N, 3), dtype=complex128)
+    Einc_mi[:, 0] = E0 * cp.exp(1j * k * z) * cp.exp(-(x**2 + y**2) / (2 * w0**2))
+    Einc_mi[:, 1] = 1j * E0 * cp.exp(1j * k * z) * cp.exp(-(x**2 + y**2) / (2 * w0**2))
+
+    return Einc_mi  # (N, 3)
+
+
+gen_Einc_mi_gaussian = (
+    gen_Einc_mi_gaussian_circular_polarization
+    if use_circular_polarization
+    else gen_Einc_mi_gaussian_linear_polarization
+)
+
+
 def gen_Einc_mi_uniform(pos_arr: NDArray[float64]) -> NDArray[complex128]:
     """
     Generates the incident electric field. Assumes x-polarized Gaussian beam.
@@ -270,6 +307,58 @@ def gen_Einc_mi_uniform(pos_arr: NDArray[float64]) -> NDArray[complex128]:
 
 
 gen_Einc_mi = gen_Einc_mi_gaussian if use_gaussian_beam else gen_Einc_mi_uniform
+
+
+def gen_Hscat(
+    pos_arr: NDArray[float64], dipole_arr: NDArray[complex128]
+) -> NDArray[complex128]:
+    xj = pos_arr[:, None, :] - pos_arr[None, :, :]
+    r = cp.linalg.norm(xj, axis=2)  # (N, N)
+
+    G = cp.exp(1j * k * r) / (4 * cp.pi * r * epsilon_0 * epsilon_b)  # (N, N)
+
+    kron = cp.eye(3)
+    xjδkl = cp.einsum("mnj,kl->mnjkl", xj, kron)
+    xkδjl = cp.einsum("mnk,jl->mnjkl", xj, kron)
+    xlδjk = cp.einsum("mnl,jk->mnjkl", xj, kron)
+    xjxkxl = cp.einsum("mnj,mnk,mnl->mnjkl", xj, xj, xj)
+    eps_ijk = cp.zeros((3, 3, 3), dtype=int)
+    eps_ijk[0, 1, 2] = eps_ijk[1, 2, 0] = eps_ijk[2, 0, 1] = 1
+    eps_ijk[0, 2, 1] = eps_ijk[2, 1, 0] = eps_ijk[1, 0, 2] = -1
+
+    # make everything a rank 5 tensor
+    r = r[:, :, None, None, None]
+    G = G[:, :, None, None, None]
+
+    first_term = (
+        G
+        * xjδkl
+        * (
+            k**2 * (-(r**-3) + 1j * k * r**-1)
+            + 1j * k * (-2 * r**-3 + 1j * k * r**-2)
+            - 2 * r**-3
+            + 1j * k * r**-2
+        )
+    )
+
+    second_term = G * (
+        3 * ((-5 * r**-6 + 1j * k * r**-5) * xjxkxl + xlδjk * r**-4 + xkδjl * r**-4)
+        - 3j
+        * k
+        * ((-4 * r**-5 + 1j * k * r**-4) * xjxkxl + xlδjk * r**-3 + +xkδjl * r**-3)
+        - k**-2
+        * ((-3 * r**-4 + 1j * k * r**-3) * xjxkxl + xlδjk * r**-2 + xkδjl * r**-2)
+    )
+
+    combined_terms = first_term + second_term
+
+    mask = cp.eye(num_of_particle, num_of_particle, dtype=bool)
+    mask = mask[:, :, None, None, None]  # resize to rank 5 tensor
+
+    masked_combined_terms = cp.where(mask, 0, combined_terms)
+    dx_Escat = cp.einsum("mnjlk,nl->mjk", masked_combined_terms, dipole_arr)
+    Hscat = cp.einsum("mjk,ijk->mi", dx_Escat, eps_ijk)
+    return Hscat
 
 
 def gen_Escat(
@@ -383,7 +472,9 @@ def gen_dx_Escat_vec(
     return dx_Escat
 
 
-def gen_dx_Einc_gaussian(pos_arr: NDArray[float64]) -> NDArray[complex128]:
+def gen_dx_Einc_gaussian_linear_polarization(
+    pos_arr: NDArray[float64],
+) -> NDArray[complex128]:
     N = num_of_particle
 
     dx_Einc = cp.zeros((N, 3, 3), dtype=complex128)
@@ -399,6 +490,30 @@ def gen_dx_Einc_gaussian(pos_arr: NDArray[float64]) -> NDArray[complex128]:
 
         matrix_term[1, 0] = -cp.sin(pol_angle) * (w0**-2) * x
         matrix_term[1, 1] = -cp.sin(pol_angle) * (w0**-2) * y
+        matrix_term[1, 2] = 1j * k
+        dx_Einc[n] = coeff * matrix_term
+
+    return dx_Einc
+
+
+def gen_dx_Einc_gaussian_circular_polarization(
+    pos_arr: NDArray[float64],
+) -> NDArray[complex128]:
+    N = num_of_particle
+
+    dx_Einc = cp.zeros((N, 3, 3), dtype=complex128)
+
+    for n in range(N):
+        x, y, z = pos_arr[n]
+        coeff = E0 * cp.exp(1j * k * z) * cp.exp(-(x**2 + y**2) / (2 * w0**2))
+
+        matrix_term = cp.zeros((3, 3), dtype=complex128)
+        matrix_term[0, 0] = -(w0**-2) * x
+        matrix_term[0, 1] = -(w0**-2) * y
+        matrix_term[0, 2] = 1j * k
+
+        matrix_term[1, 0] = -1j * (w0**-2) * x
+        matrix_term[1, 1] = -1j * (w0**-2) * y
         matrix_term[1, 2] = 1j * k
 
         dx_Einc[n] = coeff * matrix_term
@@ -456,6 +571,11 @@ def gen_dx_Einc_uniform(pos_arr: NDArray[float64]) -> NDArray[complex128]:
     return dx_Einc
 
 
+gen_dx_Einc_gaussian = (
+    gen_dx_Einc_gaussian_circular_polarization
+    if use_circular_polarization
+    else gen_dx_Einc_gaussian_linear_polarization
+)
 gen_dx_Einc = gen_dx_Einc_gaussian if use_gaussian_beam else gen_dx_Einc_uniform
 
 

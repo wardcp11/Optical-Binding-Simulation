@@ -19,9 +19,9 @@ def position_data_3D():
     ax = fig.add_subplot(projection="3d")
 
     for n in range(num_of_particle):
-        x = data[(maxstep // 2), n, 0]
-        y = data[(maxstep // 2), n, 1]
-        z = data[(maxstep // 2), n, 2]
+        x = data[(maxstep), n, 0]
+        y = data[(maxstep), n, 1]
+        z = data[(maxstep), n, 2]
 
         ax.scatter(x, y, z)
     plt.show()
@@ -212,10 +212,10 @@ if __name__ == "__main__":
     # position_data_3D()
     position_data()
     velocity_data()
-    force_data()
-    E_field_data()
-    dipole_moment_data()
-    G_max_det()
+    # force_data()
+    # E_field_data()
+    # dipole_moment_data()
+    # G_max_det()
 
     # position_data = np.load(path + "position_data.npy")
     # print(position_data.shape)

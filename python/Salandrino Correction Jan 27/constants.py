@@ -1,7 +1,8 @@
 import numpy as np
 
 use_gaussian_beam = True
-pol_angle = np.pi / 2
+use_circular_polarization = False
+pol_angle = 0
 
 # Units
 microsecond = 1.0
@@ -45,7 +46,7 @@ T = 300 * kelvin
 lam = 600e-9 * meter
 area = 100 * (1e-6 * meter) ** 2
 power = 20 * watt
-I_0 = power / area
+I_0 = power / area * 0.1
 
 # Polarizability
 # epsilon_p = -3 * (1.33**2)
@@ -104,43 +105,52 @@ y5 = r
 # y4 = r * np.sin(2 * np.pi * (3 / 5))
 
 
-# init_pos_arr = np.asarray(
-#     [
-#         # [-2 * r, r, 0],
-#         # [r, 0, 0],
-#         # [0, 0, 0],
-#         # [r, r, 0],
-#         # [2 * r, r, 0],
-#         # [-r, -r, 0],
-#         # [-2 * r, -2 * r, 0],
-#         [451.93, 26.3571, 0],
-#         [-496.532, -146.504, 0],
-#         [-586.027, 512.719, 0],
-#         # [500, 500, 0],
-#         # [-53, 573, 0],
-#         # [532, 554, 0],
-#         # [-237, -40, 0],
-#         # [-526, -137, 0],
-#     ]
-# )
+init_pos_arr = np.asarray(
+    [
+        # [-2 * r, r, 0],
+        # [r, 0, 0],
+        [0, 0, 0],
+        [r, r, r],
+        # [2 * r, r, 0],
+        # [-r, -r, 0],
+        # [-2 * r, -2 * r, 0],
+        # [451.93, 26.3571, 0],
+        # [-496.532, -146.504, 0],
+        # [-586.027, 512.719, 0],
+        # [500, 500, 0],
+        # [-53, 573, 0],
+        # [532, 554, 0],
+        # [-237, -40, 0],
+        # [-526, -137, 0],
+    ]
+)
 
-np.random.seed(125)
-init_pos_arr = np.random.uniform(low=-10 * lam / 2, high=10 * lam / 2, size=(10, 3))
-init_pos_arr[:, 2] = 0
+# np.random.seed(128)
+# init_pos_arr = np.random.uniform(low=-L / 2, high=L / 2, size=(10, 3))
+# init_pos_arr[:, 2] = 0
+
+# init_pos_arr = np.load("./data/2_9_26_tests/stable_pos.npy")
+# init_pos_arr = np.append(init_pos_arr, [[10 * r, -3 * r, 0]], axis=0)
+# init_pos_arr = np.append(init_pos_arr, [[2 * r, -3 * r, 0]], axis=0)
+# init_pos_arr = np.append(init_pos_arr, [[-7 * r, -6 * r, 0]], axis=0)
+# init_pos_arr = np.append(init_pos_arr, [[-8 * r, 10 * r, 0]], axis=0)
+# init_pos_arr = np.append(init_pos_arr, [[6 * r, 11 * r, 0]], axis=0)
+
 
 num_of_particle = init_pos_arr.shape[0]
 
 
-w0 = 40 * lam
+w0 = 400 * lam
 E0 = np.sqrt(2 * eta_0 * eta_b * I_0)
 
-q0 = 5e-3
+q0 = 3e-5
+# q0 = 0
 
 # dt = 0.0000001 * 10 / gamma
 dt = 1
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
-maxstep = 300000
+maxstep = 100000 * 5
 # maxstep = 100000
 
 if __name__ == "__main__":
