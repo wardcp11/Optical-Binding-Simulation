@@ -1,7 +1,7 @@
 import numpy as np
 
 use_gaussian_beam = True
-use_circular_polarization = False
+use_circular_polarization = True
 pol_angle = 0
 
 # Units
@@ -128,7 +128,7 @@ init_pos_arr = np.asarray(
     ]
 )
 
-np.random.seed(1000)
+np.random.seed(3000)
 init_pos_arr = np.random.uniform(low=-L / 2, high=L / 2, size=(10, 3))
 init_pos_arr[:, 2] = 0
 
@@ -153,7 +153,7 @@ q0 = 3e-5
 dt = 1
 Γ = 2 * gamma * kB * T / mass
 ΔB = Γ * dt
-maxstep = 100000
+maxstep = 100000 * 3
 # maxstep = 100000
 
 if __name__ == "__main__":

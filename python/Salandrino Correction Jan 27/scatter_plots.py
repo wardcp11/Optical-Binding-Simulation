@@ -209,9 +209,9 @@ def G_max_det():
 
 
 if __name__ == "__main__":
-    # position_data_3D()
-    position_data()
-    velocity_data()
+    position_data_3D()
+    # position_data()
+    # velocity_data()
     # force_data()
     # E_field_data()
     # dipole_moment_data()

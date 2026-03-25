@@ -17,6 +17,8 @@ intensity = cp.abs(uniform) ** 2
 
 frame_time_step = 1000
 
+delete_frames = False
+
 
 def gen_frames_uniform():
     data = np.load("./data/position_data.npy")
@@ -43,13 +45,16 @@ def gen_frames_uniform():
                 extent=(-L / 2, L / 2, -L / 2, L / 2),
                 origin="lower",
             )
+            ax.grid(True)
             ax.scatter(x, y)
             ax.set_xlim(-L / 2, L / 2)
             ax.set_ylim(-L / 2, L / 2)
 
             ax.set_xlabel("X (nm)")
             ax.set_ylabel("Y (nm)")
-        plt.savefig(f"./plotting/videos/frames/2D/time_{t}.png")
+        plt.savefig(
+            f"./plotting/videos/frames/2D/time_{t}.png", dpi=200, transparent=True
+        )
 
 
 def gen_frames_gaussian():
@@ -78,13 +83,16 @@ def gen_frames_gaussian():
                 extent=(-L / 2, L / 2, -L / 2, L / 2),
                 origin="lower",
             )
+            ax.grid(True)
             ax.scatter(x, y)
             ax.set_xlim(-L / 2, L / 2)
             ax.set_ylim(-L / 2, L / 2)
 
             ax.set_xlabel("X (nm)")
             ax.set_ylabel("Y (nm)")
-        plt.savefig(f"./plotting/videos/frames/2D/time_{t}.png")
+        plt.savefig(
+            f"./plotting/videos/frames/2D/time_{t}.png", dpi=200, transparent=True
+        )
 
 
 def gen_video():
@@ -100,11 +108,12 @@ def gen_video():
 
     print("Generated video")
 
-    for image in images:
-        try:
-            os.remove(image)
-        except OSError as e:
-            print(f"Error deleting {image}: {e}")
+    if delete_frames:
+        for image in images:
+            try:
+                os.remove(image)
+            except OSError as e:
+                print(f"Error deleting {image}: {e}")
 
 
 gen_frames = gen_frames_gaussian if use_gaussian_beam else gen_frames_uniform

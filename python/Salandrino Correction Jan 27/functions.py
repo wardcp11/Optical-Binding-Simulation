@@ -9,6 +9,7 @@ from numpy.testing import assert_allclose
 from numpy.typing import NDArray
 from constants import (
     k,
+    k0,
     epsilon_0,
     epsilon_b,
     E0,
@@ -20,6 +21,9 @@ from constants import (
     use_gaussian_beam,
     pol_angle,
     q0,
+    mu_0,
+    sigma,
+    omega,
 )
 
 
@@ -309,56 +313,79 @@ def gen_Einc_mi_uniform(pos_arr: NDArray[float64]) -> NDArray[complex128]:
 gen_Einc_mi = gen_Einc_mi_gaussian if use_gaussian_beam else gen_Einc_mi_uniform
 
 
+def gen_Hinc(pos_arr: NDArray[float64]) -> NDArray[complex128]:
+    x = pos_arr[:, 0]
+    y = pos_arr[:, 1]
+    z = pos_arr[:, 2]
+
+    constant = E0 * cp.exp(-1j * k * z) * cp.exp(-(x**2 + y**2) / (2 * w0**2))
+
+    Hinc_mi = cp.zeros((num_of_particle, 3), dtype=complex128)
+    Hinc_mi[:, 0] = -1j * k * constant * cp.sin(pol_angle)
+    Hinc_mi[:, 1] = 1j * k * constant * cp.cos(pol_angle)
+    Hinc_mi[:, 2] = (constant / w0**2) * (y * cp.cos(pol_angle) - x * cp.sin(pol_angle))
+
+    Hinc_mi = Hinc_mi / (1j * omega * mu_0)
+
+    return Hinc_mi
+
+
 def gen_Hscat(
     pos_arr: NDArray[float64], dipole_arr: NDArray[complex128]
 ) -> NDArray[complex128]:
-    xj = pos_arr[:, None, :] - pos_arr[None, :, :]
-    r = cp.linalg.norm(xj, axis=2)  # (N, N)
-
-    G = cp.exp(1j * k * r) / (4 * cp.pi * r * epsilon_0 * epsilon_b)  # (N, N)
-
-    kron = cp.eye(3)
-    xjδkl = cp.einsum("mnj,kl->mnjkl", xj, kron)
-    xkδjl = cp.einsum("mnk,jl->mnjkl", xj, kron)
-    xlδjk = cp.einsum("mnl,jk->mnjkl", xj, kron)
-    xjxkxl = cp.einsum("mnj,mnk,mnl->mnjkl", xj, xj, xj)
     eps_ijk = cp.zeros((3, 3, 3), dtype=int)
     eps_ijk[0, 1, 2] = eps_ijk[1, 2, 0] = eps_ijk[2, 0, 1] = 1
     eps_ijk[0, 2, 1] = eps_ijk[2, 1, 0] = eps_ijk[1, 0, 2] = -1
 
-    # make everything a rank 5 tensor
-    r = r[:, :, None, None, None]
-    G = G[:, :, None, None, None]
+    dx_Escat = gen_dx_Escat_vec(pos_arr, dipole_arr)
 
-    first_term = (
-        G
-        * xjδkl
-        * (
-            k**2 * (-(r**-3) + 1j * k * r**-1)
-            + 1j * k * (-2 * r**-3 + 1j * k * r**-2)
-            - 2 * r**-3
-            + 1j * k * r**-2
+    # Hscat = cp.einsum("mjk,ijk->mi", dx_Escat, eps_ijk) / (1j * omega * mu_0)
+    Hscat = -cp.einsum("mjk,ijk->mi", dx_Escat, eps_ijk) / (1j * omega * mu_0)
+    # Hscat = cp.einsum("mjk,ijk->mi", dx_Escat, eps_ijk)
+    return Hscat
+
+
+def radiation_Pressure(
+    pos_arr: NDArray[float64], dipole_arr: NDArray[complex128]
+) -> NDArray[complex128]:
+    E_field = gen_Escat(pos_arr, dipole_arr) + gen_Einc_mi_gaussian_linear_polarization(
+        pos_arr
+    )
+    H_field = gen_Hscat(pos_arr, dipole_arr) + gen_Hinc(pos_arr)
+
+    force = 0.5 * sigma * cp.real(cp.cross(E_field, cp.conjugate(H_field)))
+
+    # print(f"{E_field=}")
+    # print(f"{H_field=}")
+    # exit()
+
+    return force
+
+
+def spin_Force(
+    pos_arr: NDArray[float64], dipole_arr: NDArray[complex128]
+) -> NDArray[complex128]:
+    Einc = gen_Einc_mi_gaussian_linear_polarization(pos_arr)
+    Escat = gen_Escat(pos_arr, dipole_arr)
+
+    Etot = Einc + Escat
+
+    dx_Einc = gen_dx_Einc_gaussian_linear_polarization(pos_arr)
+    dx_Escat = gen_dx_Escat_vec(pos_arr, dipole_arr)
+    dx_Etot = dx_Einc + dx_Escat
+
+    # print(f"{Etot.shape=}")
+    # print(f"{dx_Etot.shape=}")
+
+    force = (
+        sigma
+        * 0.5
+        * cp.real(
+            1j * epsilon_0 / k0 * cp.einsum("nij,nj->ni", cp.conjugate(dx_Etot), Etot)
         )
     )
 
-    second_term = G * (
-        3 * ((-5 * r**-6 + 1j * k * r**-5) * xjxkxl + xlδjk * r**-4 + xkδjl * r**-4)
-        - 3j
-        * k
-        * ((-4 * r**-5 + 1j * k * r**-4) * xjxkxl + xlδjk * r**-3 + +xkδjl * r**-3)
-        - k**-2
-        * ((-3 * r**-4 + 1j * k * r**-3) * xjxkxl + xlδjk * r**-2 + xkδjl * r**-2)
-    )
-
-    combined_terms = first_term + second_term
-
-    mask = cp.eye(num_of_particle, num_of_particle, dtype=bool)
-    mask = mask[:, :, None, None, None]  # resize to rank 5 tensor
-
-    masked_combined_terms = cp.where(mask, 0, combined_terms)
-    dx_Escat = cp.einsum("mnjlk,nl->mjk", masked_combined_terms, dipole_arr)
-    Hscat = cp.einsum("mjk,ijk->mi", dx_Escat, eps_ijk)
-    return Hscat
+    return force
 
 
 def gen_Escat(
@@ -667,3 +694,5 @@ def coulomb_force(pos_arr: NDArray[float64]):
 
 if __name__ == "__main__":
     print("Hello World")
+    print(f"{mu_0=}")
+    print(f"{omega * mu_0=}")

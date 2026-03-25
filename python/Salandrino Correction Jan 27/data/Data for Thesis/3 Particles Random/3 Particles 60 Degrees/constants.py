@@ -2,7 +2,7 @@ import numpy as np
 
 use_gaussian_beam = True
 use_circular_polarization = False
-pol_angle = 0
+pol_angle = np.pi / 3
 
 # Units
 microsecond = 1.0
@@ -111,8 +111,8 @@ y5 = r
 
 init_pos_arr = np.asarray(
     [
-        [2 * r, 0, 0],
-        [2 * r, 3 * r, 0],
+        [-2 * r, r, 0],
+        [r, 0, 0],
         # [0, 0, 0],
         # [r, r, r],
         [2 * r, r, 0],
@@ -128,9 +128,9 @@ init_pos_arr = np.asarray(
     ]
 )
 
-np.random.seed(1000)
-init_pos_arr = np.random.uniform(low=-L / 2, high=L / 2, size=(10, 3))
-init_pos_arr[:, 2] = 0
+# np.random.seed(1000)
+# init_pos_arr = np.random.uniform(low=-L / 2, high=L / 2, size=(10, 3))
+# init_pos_arr[:, 2] = 0
 
 # init_pos_arr = np.load("./data/2_9_26_tests/stable_pos.npy")
 # init_pos_arr = np.append(init_pos_arr, [[10 * r, -3 * r, 0]], axis=0)

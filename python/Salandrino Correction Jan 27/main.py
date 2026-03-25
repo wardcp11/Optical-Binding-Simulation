@@ -17,9 +17,13 @@ from functions import (
     create_G_mnij,
     create_G_mnij_scatter,
     gen_Einc_mi,
+    gen_Escat,
     gen_F_grad,
     gen_Hscat,
+    gen_Hinc,
     coulomb_force,
+    radiation_Pressure,
+    spin_Force,
 )
 
 
@@ -51,9 +55,12 @@ if __name__ == "__main__":
 
     F_grad = gen_F_grad(pos_arr, p_i)  # type: ignore
 
-    gen_Hscat(pos_arr, p_i)
-    print(gen_Hscat(pos_arr, p_i))
-    exit()
+    # print(gen_Escat(pos_arr, p_i))
+    # print(f"{gen_Hscat(pos_arr, p_i)=}")
+    # print(f"{gen_Hinc(pos_arr)=}")
+    # print(f"{radiation_Pressure(pos_arr, p_i)}")
+    # print(f"{spin_Force(pos_arr, p_i)=}")
+    # exit()
 
     velocity_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
     full_pos_arr = cp.zeros((maxstep + 1, num_of_particle, 3))
@@ -126,18 +133,18 @@ if __name__ == "__main__":
         #     [0, 0, 0]
         # )  # set velocity to zero on the first particle
 
-        for i in range(num_of_particle):
-            forces_arr[step, i, 2] = 0
-            velocity_arr[step, i, 2] = 0
-            full_pos_arr[step, i, 2] = 0
+        # for i in range(num_of_particle):
+        #     forces_arr[step, i, 2] = 0
+        #     velocity_arr[step, i, 2] = 0
+        #     full_pos_arr[step, i, 2] = 0
 
     # SAVE DATA
-    cp.save("./data/p_i_data.npy", cp.asarray(p_i_arr))
-    cp.save("./data/E_n_data.npy", cp.asarray(E_n_arr))
+    # cp.save("./data/p_i_data.npy", cp.asarray(p_i_arr))
+    # cp.save("./data/E_n_data.npy", cp.asarray(E_n_arr))
     cp.save("./data/position_data.npy", cp.asarray(full_pos_arr))
     cp.save("./data/velocity_data.npy", cp.asarray(velocity_arr))
     cp.save("./data/forces_data.npy", cp.asarray(forces_arr))
-    cp.save("./data/eigenvalues_data.npy", cp.asarray(eigenvalue_arr))
-    cp.save("./data/G_det.npy", cp.asarray(det_G_arr))
-    cp.save("./data/G_max.npy", cp.asarray(max_G_arr))
+    # cp.save("./data/eigenvalues_data.npy", cp.asarray(eigenvalue_arr))
+    # cp.save("./data/G_det.npy", cp.asarray(det_G_arr))
+    # cp.save("./data/G_max.npy", cp.asarray(max_G_arr))
     print("saved data")
